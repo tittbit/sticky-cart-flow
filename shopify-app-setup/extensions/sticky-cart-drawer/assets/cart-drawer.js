@@ -29,11 +29,27 @@ class StickyCartDrawer {
 
   async loadSettings() {
     try {
-      const response = await fetch('/tools/cart-drawer/settings');
+      // 1) Prefer settings injected by the App Embed (no network dependency)
+      if (window && window.STICKY_CART_SETTINGS) {
+        this.settings = window.STICKY_CART_SETTINGS;
+        return;
+      }
+
+      // 2) Fallback to App Proxy (requires proper proxy configuration)
+      const response = await fetch('/tools/cart-drawer/settings', { headers: { 'Cache-Control': 'no-store' } });
+      if (!response.ok) throw new Error('Settings fetch failed');
       this.settings = await response.json();
     } catch (error) {
       console.error('Failed to load cart drawer settings:', error);
-      this.settings = { enabled: false };
+      // 3) Last resort safe defaults so the cart still appears
+      this.settings = {
+        enabled: true,
+        stickyButton: { enabled: true, text: 'Cart', position: 'bottom-right' },
+        freeShipping: { enabled: true, threshold: 50 },
+        upsells: { enabled: false },
+        addOns: { enabled: false },
+        discountBar: { enabled: false },
+      };
     }
   }
 
