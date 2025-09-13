@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useFetcher, useLoaderData } from "@remix-run/react";
+import { useFetcher, useLoaderData, useNavigate } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -68,7 +68,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Index() {
-  const nav = useNavigate();
   const { showToast } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const isLoading =
@@ -78,11 +77,6 @@ export default function Index() {
     "",
   );
 
-  useEffect(() => {
-    if (productId) {
-      shopify.toast.show("Product created");
-    }
-  }, [productId]);
   const generateProduct = () => fetcher.submit({}, { method: "POST" });
 
   return (
