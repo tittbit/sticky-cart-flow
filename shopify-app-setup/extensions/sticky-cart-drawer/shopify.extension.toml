@@ -1,11 +1,3 @@
-type = "theme_app_extension"
-name = "Sticky Cart Drawer"
-
-[build]
-command = ""
-watch = []
-
-[[extensions]]
-type = "theme_app_extension"
+type = "theme"
 name = "Sticky Cart Drawer"
 handle = "sticky-cart-drawer"
