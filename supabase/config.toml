@@ -3,7 +3,7 @@ project_id = "mjfzxmpscndznuaeoxft"
 [functions.shop-config]
 verify_jwt = false
 
-[functions.analytics] 
+[functions.analytics]
 verify_jwt = false
 
 [functions.billing]
