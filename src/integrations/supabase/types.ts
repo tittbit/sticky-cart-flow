@@ -130,7 +130,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_usage_stats: {
+        Args: {
+          p_cart_opens?: number
+          p_conversions?: number
+          p_month: string
+          p_orders_processed?: number
+          p_revenue_generated?: number
+          p_shop_domain: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
