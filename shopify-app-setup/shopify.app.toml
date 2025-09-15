@@ -8,7 +8,6 @@ embedded = true
 [build]
 automatically_update_urls_on_dev = true
 dev_store_url = "dimestore-test.myshopify.com"
-include_config_on_deploy = true
 
 [app_proxy]
 url = "https://sticky-cart-flow.vercel.app/proxy"
