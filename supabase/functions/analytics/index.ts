@@ -6,77 +6,89 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const url = new URL(req.url);
-    const shopDomain = url.searchParams.get('shop') || 'default-shop.myshopify.com';
+    const shopDomain = url.searchParams.get('shop') || req.headers.get('x-shop-domain');
+    
+    if (!shopDomain) {
+      return new Response(JSON.stringify({ error: 'Shop domain is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (req.method === 'POST') {
       // Track analytics event
-      const { event_type, session_id, cart_total, item_count, product_id, variant_id, event_data } = await req.json();
+      const { eventType, sessionId, cartTotal, itemCount, productId, variantId, eventData } = await req.json();
       
-      const userAgent = req.headers.get('user-agent') || '';
+      if (!eventType) {
+        return new Response(JSON.stringify({ error: 'Event type is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       // Insert analytics event
-      const { error: analyticsError } = await supabaseClient
+      const { error: analyticsError } = await supabase
         .from('cart_analytics')
         .insert({
           shop_domain: shopDomain,
-          event_type,
-          session_id,
-          cart_total,
-          item_count,
-          product_id,
-          variant_id,
-          event_data,
-          user_agent: userAgent
+          event_type: eventType,
+          session_id: sessionId,
+          cart_total: cartTotal,
+          item_count: itemCount,
+          product_id: productId,
+          variant_id: variantId,
+          event_data: eventData || {},
+          user_agent: req.headers.get('user-agent')
         });
 
       if (analyticsError) {
-        console.error('Error inserting analytics:', analyticsError);
-        throw analyticsError;
+        console.error('Error tracking analytics:', analyticsError);
+        return new Response(JSON.stringify({ error: 'Failed to track analytics' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
-      // Update monthly usage stats
-      const currentMonth = new Date().toISOString().slice(0, 7) + '-01'; // First day of current month
+      // Update monthly usage statistics
+      const currentMonth = new Date().toISOString().slice(0, 7) + '-01'; // YYYY-MM-01
       
       let updateData: any = {};
-      switch (event_type) {
-        case 'cart_open':
-          updateData.cart_opens = 1;
-          break;
-        case 'checkout_click':
-          updateData.conversions = 1;
-          if (cart_total) updateData.revenue_generated = cart_total;
-          break;
+      if (eventType === 'cart_open') {
+        updateData.cart_opens = 1;
+      } else if (eventType === 'checkout_click') {
+        updateData.conversions = 1;
+        updateData.orders_processed = 1;
+        updateData.revenue_generated = cartTotal || 0;
       }
 
       if (Object.keys(updateData).length > 0) {
-        // Use PostgreSQL's ON CONFLICT with increment
-        const { error: usageError } = await supabaseClient.rpc('increment_usage', {
-          shop_domain_param: shopDomain,
-          month_param: currentMonth,
-          cart_opens_increment: updateData.cart_opens || 0,
-          conversions_increment: updateData.conversions || 0,
-          revenue_increment: updateData.revenue_generated || 0
+        // Use SQL function to increment counters
+        const { error: usageError } = await supabase.rpc('increment_usage_stats', {
+          p_shop_domain: shopDomain,
+          p_month: currentMonth,
+          p_cart_opens: updateData.cart_opens || 0,
+          p_conversions: updateData.conversions || 0,
+          p_orders_processed: updateData.orders_processed || 0,
+          p_revenue_generated: updateData.revenue_generated || 0
         });
 
         if (usageError) {
-          console.error('Error updating usage:', usageError);
-          // Don't throw here, analytics event was still recorded
+          console.error('Error updating usage stats:', usageError);
         }
       }
-
-      console.log('Analytics event tracked:', event_type, 'for shop:', shopDomain);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -90,51 +102,52 @@ serve(async (req) => {
       startDate.setDate(startDate.getDate() - days);
 
       // Get recent analytics
-      const { data: events, error: eventsError } = await supabaseClient
+      const { data: analytics, error } = await supabase
         .from('cart_analytics')
         .select('*')
         .eq('shop_domain', shopDomain)
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false });
 
-      if (eventsError) {
-        console.error('Error fetching events:', eventsError);
-        throw eventsError;
+      if (error) {
+        console.error('Error fetching analytics:', error);
+        return new Response(JSON.stringify({ error: 'Failed to fetch analytics' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
-      // Get monthly usage stats
-      const { data: usage, error: usageError } = await supabaseClient
+      // Calculate metrics
+      const cartOpens = analytics?.filter(a => a.event_type === 'cart_open').length || 0;
+      const conversions = analytics?.filter(a => a.event_type === 'checkout_click').length || 0;
+      const conversionRate = cartOpens > 0 ? (conversions / cartOpens * 100).toFixed(1) : '0';
+      
+      const totalRevenue = analytics
+        ?.filter(a => a.event_type === 'checkout_click' && a.cart_total)
+        .reduce((sum, a) => sum + parseFloat(a.cart_total || '0'), 0) || 0;
+      
+      const avgOrderValue = conversions > 0 ? (totalRevenue / conversions).toFixed(2) : '0';
+
+      // Get monthly usage data
+      const { data: monthlyUsage, error: usageError } = await supabase
         .from('subscription_usage')
         .select('*')
         .eq('shop_domain', shopDomain)
-        .gte('month', startDate.toISOString().slice(0, 7) + '-01')
-        .order('month', { ascending: false });
-
-      if (usageError) {
-        console.error('Error fetching usage:', usageError);
-        throw usageError;
-      }
-
-      // Calculate summary stats
-      const cartOpens = events?.filter(e => e.event_type === 'cart_open').length || 0;
-      const conversions = events?.filter(e => e.event_type === 'checkout_click').length || 0;
-      const conversionRate = cartOpens > 0 ? (conversions / cartOpens * 100) : 0;
-      const avgOrderValue = conversions > 0 ? 
-        events?.filter(e => e.event_type === 'checkout_click' && e.cart_total)
-               .reduce((sum, e) => sum + (e.cart_total || 0), 0) / conversions : 0;
-
-      const summary = {
-        cart_opens: cartOpens,
-        conversions: conversions,
-        conversion_rate: Math.round(conversionRate * 100) / 100,
-        avg_order_value: Math.round(avgOrderValue * 100) / 100,
-        abandonment_rate: cartOpens > 0 ? Math.round((1 - conversionRate / 100) * 10000) / 100 : 0
-      };
+        .order('month', { ascending: false })
+        .limit(6);
 
       return new Response(JSON.stringify({
-        summary,
-        events: events || [],
-        monthly_usage: usage || []
+        success: true,
+        metrics: {
+          cartOpens,
+          conversions,
+          conversionRate: parseFloat(conversionRate),
+          totalRevenue,
+          avgOrderValue: parseFloat(avgOrderValue),
+          abandonment: cartOpens > 0 ? ((cartOpens - conversions) / cartOpens * 100).toFixed(1) : '0'
+        },
+        monthlyUsage: monthlyUsage || [],
+        recentEvents: analytics?.slice(0, 100) || []
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -147,9 +160,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in analytics function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Internal server error' 
-    }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

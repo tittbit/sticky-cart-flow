@@ -6,130 +6,199 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
+// Plan configurations
+const PLANS = {
+  starter: {
+    name: 'Starter',
+    price: 9,
+    limits: {
+      orders: 100,
+      features: ['basic_cart', 'free_shipping_bar']
+    }
+  },
+  growth: {
+    name: 'Growth',
+    price: 29,
+    limits: {
+      orders: 1000,
+      features: ['basic_cart', 'free_shipping_bar', 'upsells', 'discount_codes']
+    }
+  },
+  pro: {
+    name: 'Pro',
+    price: 79,
+    limits: {
+      orders: 10000,
+      features: ['basic_cart', 'free_shipping_bar', 'upsells', 'discount_codes', 'analytics', 'priority_support']
+    }
+  }
+};
+
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const url = new URL(req.url);
-    const shopDomain = url.searchParams.get('shop') || 'default-shop.myshopify.com';
+    const shopDomain = url.searchParams.get('shop') || req.headers.get('x-shop-domain');
+    
+    if (!shopDomain) {
+      return new Response(JSON.stringify({ error: 'Shop domain is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (req.method === 'GET') {
       // Get billing information
-      const { data: config, error } = await supabaseClient
+      const { data: config, error } = await supabase
         .from('shop_configurations')
-        .select('subscription_status, subscription_plan, trial_ends_at, created_at')
+        .select('*')
         .eq('shop_domain', shopDomain)
         .single();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching billing info:', error);
-        throw error;
+        return new Response(JSON.stringify({ error: 'Failed to fetch billing information' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       // Get current month usage
       const currentMonth = new Date().toISOString().slice(0, 7) + '-01';
-      const { data: usage, error: usageError } = await supabaseClient
+      const { data: usage, error: usageError } = await supabase
         .from('subscription_usage')
         .select('*')
         .eq('shop_domain', shopDomain)
         .eq('month', currentMonth)
         .single();
 
-      if (usageError && usageError.code !== 'PGRST116') {
-        console.error('Error fetching usage:', usageError);
-      }
-
-      // Plan limits and pricing
-      const plans = {
-        starter: { orders: 100, price: 0 },
-        growth: { orders: 500, price: 19 },
-        pro: { orders: 2000, price: 49 }
-      };
-
-      const plan = config?.subscription_plan || 'starter';
+      const currentPlan = config?.subscription_plan || 'starter';
+      const planConfig = PLANS[currentPlan as keyof typeof PLANS];
       const currentUsage = usage?.orders_processed || 0;
-      const planLimit = plans[plan as keyof typeof plans]?.orders || 100;
-      
-      // Calculate trial days remaining
-      let trialDaysRemaining = 0;
-      if (config?.trial_ends_at) {
-        const trialEnd = new Date(config.trial_ends_at);
-        const now = new Date();
-        trialDaysRemaining = Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-      }
+      const usagePercentage = (currentUsage / planConfig.limits.orders * 100).toFixed(1);
 
-      // Mock billing history (in real app, this would come from Shopify billing API)
+      // Generate fake billing history for demo
       const billingHistory = [
         {
           id: '1',
           date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-          amount: plans[plan as keyof typeof plans]?.price || 0,
-          status: 'paid',
-          description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan - Monthly`
+          amount: planConfig.price,
+          plan: planConfig.name,
+          status: 'paid'
         },
         {
-          id: '2',
+          id: '2', 
           date: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-          amount: plans[plan as keyof typeof plans]?.price || 0,
-          status: 'paid',
-          description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan - Monthly`
+          amount: planConfig.price,
+          plan: planConfig.name,
+          status: 'paid'
+        },
+        {
+          id: '3',
+          date: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+          amount: planConfig.price,
+          plan: planConfig.name,
+          status: 'paid'
         }
       ];
 
       return new Response(JSON.stringify({
-        subscription_status: config?.subscription_status || 'trial',
-        subscription_plan: plan,
-        trial_days_remaining: trialDaysRemaining,
-        current_usage: currentUsage,
-        plan_limit: planLimit,
-        usage_percentage: Math.round((currentUsage / planLimit) * 100),
-        billing_history: billingHistory,
-        plans: plans
+        success: true,
+        subscription: {
+          status: config?.subscription_status || 'trial',
+          plan: currentPlan,
+          trialEndsAt: config?.trial_ends_at,
+          price: planConfig.price,
+          limits: planConfig.limits,
+          usage: {
+            orders: currentUsage,
+            ordersLimit: planConfig.limits.orders,
+            usagePercentage: parseFloat(usagePercentage)
+          }
+        },
+        plans: PLANS,
+        billingHistory
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (req.method === 'POST') {
-      // Update subscription plan
-      const { plan } = await req.json();
+      // Handle plan changes and billing actions
+      const { action, plan } = await req.json();
       
-      if (!['starter', 'growth', 'pro'].includes(plan)) {
-        throw new Error('Invalid plan');
+      if (action === 'change_plan') {
+        if (!plan || !PLANS[plan as keyof typeof PLANS]) {
+          return new Response(JSON.stringify({ error: 'Invalid plan' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Update subscription plan
+        const { error } = await supabase
+          .from('shop_configurations')
+          .upsert({
+            shop_domain: shopDomain,
+            subscription_plan: plan,
+            subscription_status: 'active',
+            settings: {} // Keep existing settings
+          }, {
+            onConflict: 'shop_domain'
+          });
+
+        if (error) {
+          console.error('Error updating plan:', error);
+          return new Response(JSON.stringify({ error: 'Failed to update plan' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: `Successfully upgraded to ${PLANS[plan as keyof typeof PLANS].name} plan`,
+          plan
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
-      const { data, error } = await supabaseClient
-        .from('shop_configurations')
-        .upsert({
-          shop_domain: shopDomain,
-          subscription_plan: plan,
-          subscription_status: plan === 'starter' ? 'trial' : 'active',
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'shop_domain'
-        })
-        .select()
-        .single();
+      if (action === 'cancel_subscription') {
+        const { error } = await supabase
+          .from('shop_configurations')
+          .update({
+            subscription_status: 'cancelled'
+          })
+          .eq('shop_domain', shopDomain);
 
-      if (error) {
-        console.error('Error updating subscription:', error);
-        throw error;
+        if (error) {
+          console.error('Error cancelling subscription:', error);
+          return new Response(JSON.stringify({ error: 'Failed to cancel subscription' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Subscription cancelled successfully'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
-      console.log('Subscription updated for shop:', shopDomain, 'to plan:', plan);
-
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: `Successfully upgraded to ${plan} plan`,
-        data 
-      }), {
+      return new Response(JSON.stringify({ error: 'Invalid action' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -141,9 +210,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in billing function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Internal server error' 
-    }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

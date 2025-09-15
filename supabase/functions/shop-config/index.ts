@@ -6,56 +6,71 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const url = new URL(req.url);
-    const shopDomain = url.searchParams.get('shop') || 'default-shop.myshopify.com';
+    const shopDomain = url.searchParams.get('shop') || req.headers.get('x-shop-domain');
+    
+    if (!shopDomain) {
+      return new Response(JSON.stringify({ error: 'Shop domain is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (req.method === 'GET') {
       // Get shop configuration
-      const { data: config, error } = await supabaseClient
+      const { data: config, error } = await supabase
         .from('shop_configurations')
         .select('*')
         .eq('shop_domain', shopDomain)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // Not found error is OK
+      if (error && error.code !== 'PGRST116') {
         console.error('Error fetching config:', error);
-        throw error;
+        return new Response(JSON.stringify({ error: 'Failed to fetch configuration' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       // Return default config if none exists
       const defaultConfig = {
-        enabled: true,
-        sticky_button_enabled: true,
-        sticky_button_text: "Cart",
-        sticky_button_position: "bottom-right",
-        theme_color: "#000000",
-        free_shipping_enabled: true,
-        free_shipping_threshold: 50,
-        upsells_enabled: false,
-        upsell_products: [],
-        addons_enabled: false,
-        addon_products: [],
-        discount_bar_enabled: false,
-        discount_code: "",
-        announcement_enabled: false,
-        announcement_text: ""
+        cartDrawerEnabled: true,
+        stickyButtonEnabled: true,
+        drawerPosition: 'right',
+        themeColor: '#000000',
+        stickyButtonText: 'Cart',
+        stickyButtonPosition: 'bottom-right',
+        freeShippingEnabled: true,
+        freeShippingThreshold: 50,
+        upsellsEnabled: false,
+        addOnsEnabled: false,
+        discountBarEnabled: false,
+        announcementText: '',
+        discountCode: ''
       };
 
-      return new Response(JSON.stringify({
-        settings: config?.settings || defaultConfig,
-        subscription_status: config?.subscription_status || 'trial',
-        subscription_plan: config?.subscription_plan || 'starter'
+      const settings = config ? { ...defaultConfig, ...config.settings } : defaultConfig;
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        settings,
+        subscription: {
+          status: config?.subscription_status || 'trial',
+          plan: config?.subscription_plan || 'starter',
+          trialEndsAt: config?.trial_ends_at
+        }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -64,13 +79,20 @@ serve(async (req) => {
     if (req.method === 'POST') {
       // Save shop configuration
       const { settings } = await req.json();
+      
+      if (!settings) {
+        return new Response(JSON.stringify({ error: 'Settings are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
-      const { data, error } = await supabaseClient
+      // Upsert configuration
+      const { data, error } = await supabase
         .from('shop_configurations')
         .upsert({
           shop_domain: shopDomain,
-          settings: settings,
-          updated_at: new Date().toISOString()
+          settings: settings
         }, {
           onConflict: 'shop_domain'
         })
@@ -79,13 +101,15 @@ serve(async (req) => {
 
       if (error) {
         console.error('Error saving config:', error);
-        throw error;
+        return new Response(JSON.stringify({ error: 'Failed to save configuration' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-
-      console.log('Configuration saved for shop:', shopDomain);
 
       return new Response(JSON.stringify({ 
         success: true, 
+        message: 'Configuration saved successfully',
         data 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -99,9 +123,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in shop-config function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Internal server error' 
-    }), {
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

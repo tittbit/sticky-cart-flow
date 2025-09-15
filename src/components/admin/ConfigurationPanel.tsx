@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const ConfigurationPanel = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({
     // Cart Drawer Settings
     cartDrawerEnabled: true,
@@ -34,16 +36,74 @@ export const ConfigurationPanel = () => {
     announcementText: "Free shipping on orders over $75!",
   });
 
+  // Load settings on component mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('shop-config', {
+        method: 'GET',
+        headers: {
+          'x-shop-domain': 'demo-shop.myshopify.com'
+        }
+      });
+
+      if (data?.success && data.settings) {
+        setSettings(prev => ({
+          ...prev,
+          ...data.settings
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }  
+  };
+
   const handleSettingChange = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleSave = () => {
-    // Here we would save to Shopify metafields
-    toast({
-      title: "Settings saved!",
-      description: "Your cart drawer configuration has been updated.",
-    });
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('shop-config', {
+        method: 'POST',
+        headers: {
+          'x-shop-domain': 'demo-shop.myshopify.com'
+        },
+        body: {
+          settings
+        }
+      });
+
+      if (data?.success) {
+        toast({
+          title: "Settings saved!",
+          description: "Your cart drawer configuration has been updated.",
+        });
+      } else {
+        throw new Error(data?.error || 'Failed to save settings');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const featureCards = [
@@ -249,8 +309,8 @@ export const ConfigurationPanel = () => {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button onClick={handleSave} className="gradient-primary text-white px-8">
-          Save Configuration
+        <Button onClick={handleSave} className="gradient-primary text-white px-8" disabled={loading}>
+          {loading ? "Saving..." : "Save Configuration"}
         </Button>
       </div>
     </div>

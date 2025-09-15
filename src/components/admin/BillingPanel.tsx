@@ -1,27 +1,106 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const BillingPanel = () => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [upgrading, setUpgrading] = useState(false);
+  const [billingData, setBillingData] = useState({
+    subscription: {
+      status: 'trial',
+      plan: 'starter',
+      trialEndsAt: null,
+      price: 9,
+      limits: { orders: 100, features: [] },
+      usage: { orders: 0, ordersLimit: 100, usagePercentage: 0 }
+    },
+    plans: {},
+    billingHistory: []
+  });
+
+  useEffect(() => {
+    loadBillingData();
+  }, []);
+
+  const loadBillingData = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('billing', {
+        method: 'GET',
+        headers: {
+          'x-shop-domain': 'demo-shop.myshopify.com'
+        }
+      });
+
+      if (data?.success) {
+        setBillingData(data);
+      }
+    } catch (error) {
+      console.error('Error loading billing data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePlanChange = async (planId: string) => {
+    try {
+      setUpgrading(true);
+      const { data, error } = await supabase.functions.invoke('billing', {
+        method: 'POST',
+        headers: {
+          'x-shop-domain': 'demo-shop.myshopify.com'
+        },
+        body: {
+          action: 'change_plan',
+          plan: planId
+        }
+      });
+
+      if (data?.success) {
+        toast({
+          title: "Plan Updated",
+          description: data.message,
+        });
+        await loadBillingData(); // Reload data
+      } else {
+        throw new Error(data?.error || 'Failed to update plan');
+      }
+    } catch (error) {
+      console.error('Error updating plan:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update plan. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
   const plans = [
     {
+      id: "starter",
       name: "Starter",
-      price: "$29.99",
+      price: "$9",
       period: "month",
-      orders: "0-200 orders",
+      orders: "0-100 orders",
       features: [
         "Cart Drawer",
         "Sticky Button", 
         "Basic Analytics",
         "Email Support",
       ],
-      current: true,
+      current: billingData.subscription.plan === 'starter',
     },
     {
+      id: "growth",
       name: "Growth",
-      price: "$34.99",
+      price: "$29",
       period: "month",
-      orders: "201-500 orders",
+      orders: "101-1000 orders",
       features: [
         "Everything in Starter",
         "Product Upsells",
@@ -29,13 +108,14 @@ export const BillingPanel = () => {
         "Advanced Analytics",
         "Priority Support",
       ],
-      current: false,
+      current: billingData.subscription.plan === 'growth',
     },
     {
+      id: "pro",
       name: "Pro",
-      price: "$54.99",
+      price: "$79",
       period: "month", 
-      orders: "501-1000 orders",
+      orders: "1001-10000 orders",
       features: [
         "Everything in Growth",
         "Discount Promotions",
@@ -43,7 +123,7 @@ export const BillingPanel = () => {
         "A/B Testing",
         "White-label Support",
       ],
-      current: false,
+      current: billingData.subscription.plan === 'pro',
     },
   ];
 
@@ -58,22 +138,32 @@ export const BillingPanel = () => {
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold">Starter Plan</h3>
-              <p className="text-muted-foreground">$29.99/month • 127 orders this month</p>
+              <h3 className="text-lg font-semibold">{billingData.subscription.plan.charAt(0).toUpperCase() + billingData.subscription.plan.slice(1)} Plan</h3>
+              <p className="text-muted-foreground">
+                ${billingData.subscription.price}/month • {billingData.subscription.usage.orders} orders this month
+              </p>
             </div>
-            <Badge variant="default" className="bg-success text-success-foreground">
-              Active
+            <Badge variant="default" className={`${
+              billingData.subscription.status === 'active' ? 'bg-success text-success-foreground' : 
+              billingData.subscription.status === 'trial' ? 'bg-warning text-warning-foreground' : 'bg-secondary'
+            }`}>
+              {billingData.subscription.status === 'trial' ? 'Trial' : 'Active'}
             </Badge>
           </div>
           
           <div className="mt-4 p-4 bg-muted/30 rounded-lg">
             <div className="flex justify-between text-sm mb-2">
               <span>Orders used</span>
-              <span>127 / 200</span>
+              <span>{billingData.subscription.usage.orders} / {billingData.subscription.usage.ordersLimit}</span>
             </div>
             <div className="progress-bar">
-              <div className="progress-fill" style={{ width: "63.5%" }}></div>
+              <div className="progress-fill" style={{ width: `${billingData.subscription.usage.usagePercentage}%` }}></div>
             </div>
+            {billingData.subscription.status === 'trial' && billingData.subscription.trialEndsAt && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Trial ends: {new Date(billingData.subscription.trialEndsAt).toLocaleDateString()}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -110,9 +200,10 @@ export const BillingPanel = () => {
               <Button 
                 variant={plan.current ? "secondary" : "default"}
                 className={`w-full ${!plan.current ? "gradient-primary text-white" : ""}`}
-                disabled={plan.current}
+                disabled={plan.current || upgrading}
+                onClick={() => !plan.current && handlePlanChange(plan.id)}
               >
-                {plan.current ? "Current Plan" : "Upgrade"}
+                {plan.current ? "Current Plan" : upgrading ? "Upgrading..." : "Upgrade"}
               </Button>
             </CardContent>
           </Card>
@@ -127,23 +218,19 @@ export const BillingPanel = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[
-              { date: "Dec 1, 2024", amount: "$29.99", status: "Paid", invoice: "INV-001" },
-              { date: "Nov 1, 2024", amount: "$29.99", status: "Paid", invoice: "INV-002" },
-              { date: "Oct 1, 2024", amount: "$0.00", status: "Trial", invoice: "TRIAL" },
-            ].map((item, index) => (
+            {billingData.billingHistory.map((item, index) => (
               <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
                 <div className="flex items-center space-x-4">
                   <div>
-                    <div className="font-medium">{item.date}</div>
-                    <div className="text-sm text-muted-foreground">{item.invoice}</div>
+                    <div className="font-medium">{new Date(item.date).toLocaleDateString()}</div>
+                    <div className="text-sm text-muted-foreground">{item.plan} Plan</div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
-                  <span className="font-semibold">{item.amount}</span>
+                  <span className="font-semibold">${item.amount}</span>
                   <Badge 
-                    variant={item.status === "Paid" ? "default" : "secondary"}
-                    className={item.status === "Paid" ? "bg-success text-success-foreground" : ""}
+                    variant={item.status === 'paid' ? "default" : "secondary"}
+                    className={item.status === 'paid' ? "bg-success text-success-foreground" : ""}
                   >
                     {item.status}
                   </Badge>
