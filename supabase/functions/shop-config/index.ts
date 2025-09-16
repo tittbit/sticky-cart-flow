@@ -52,7 +52,7 @@ serve(async (req) => {
         themeColor: '#000000',
         stickyButtonText: 'Cart',
         stickyButtonPosition: 'bottom-right',
-        freeShippingEnabled: true,
+        freeShippingEnabled: false,
         freeShippingThreshold: 50,
         upsellsEnabled: false,
         addOnsEnabled: false,
@@ -61,11 +61,34 @@ serve(async (req) => {
         discountCode: ''
       };
 
-      const settings = config ? { ...defaultConfig, ...config.settings } : defaultConfig;
+      // Merge DB settings with defaults then normalize keys to canonical shape
+      const rawSettings = config ? { ...defaultConfig, ...(config.settings || {}) } : defaultConfig;
+
+      const normalized = {
+        cartDrawerEnabled: rawSettings.cartDrawerEnabled ?? rawSettings.enabled ?? true,
+        drawerPosition: rawSettings.drawerPosition || rawSettings.cartDrawerPosition || 'right',
+        themeColor: rawSettings.themeColor || '#000000',
+
+        // Sticky button
+        stickyButtonEnabled: rawSettings.stickyButtonEnabled ?? rawSettings.stickyButton?.enabled ?? true,
+        stickyButtonText: rawSettings.stickyButtonText || rawSettings.buttonText || rawSettings.stickyButton?.text || 'Cart',
+        stickyButtonPosition: rawSettings.stickyButtonPosition || rawSettings.buttonPosition || rawSettings.stickyButton?.position || 'bottom-right',
+
+        // Free shipping
+        freeShippingEnabled: rawSettings.freeShippingEnabled ?? rawSettings.freeShippingBarEnabled ?? rawSettings.freeShipping?.enabled ?? false,
+        freeShippingThreshold: Number(rawSettings.freeShippingThreshold ?? rawSettings.freeShipping?.threshold ?? 50),
+
+        // Features
+        upsellsEnabled: rawSettings.upsellsEnabled ?? rawSettings.upsells?.enabled ?? false,
+        addOnsEnabled: rawSettings.addOnsEnabled ?? rawSettings.addOns?.enabled ?? false,
+        discountBarEnabled: rawSettings.discountBarEnabled ?? rawSettings.discountPromoEnabled ?? rawSettings.discountBar?.enabled ?? false,
+        announcementText: rawSettings.announcementText || '',
+        discountCode: rawSettings.discountCode || ''
+      };
       
       return new Response(JSON.stringify({ 
         success: true, 
-        settings,
+        settings: normalized,
         subscription: {
           status: config?.subscription_status || 'trial',
           plan: config?.subscription_plan || 'starter',

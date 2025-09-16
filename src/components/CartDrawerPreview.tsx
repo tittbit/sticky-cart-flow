@@ -42,7 +42,10 @@ export const CartDrawerPreview = () => {
     loadIntegrationStatus();
 
     // Live apply settings pushed from admin save
-    const onConfigUpdate = (e: any) => setSettings(e.detail);
+    const onConfigUpdate = () => {
+      // Re-fetch from edge function to get normalized settings shape
+      loadConfiguration();
+    };
     window.addEventListener('shop-config:updated', onConfigUpdate as EventListener);
 
     // Periodic refresh as fallback
