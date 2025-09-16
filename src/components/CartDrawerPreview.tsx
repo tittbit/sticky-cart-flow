@@ -14,6 +14,7 @@ export const CartDrawerPreview = () => {
   const [integrationStatus, setIntegrationStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const [shop, setShop] = useState<string>('');
 
   const [cartItems] = useState([
     {
@@ -60,10 +61,11 @@ export const CartDrawerPreview = () => {
   const loadConfiguration = async () => {
     try {
       const { getShopDomain } = await import('@/lib/shop');
-      const shop = getShopDomain();
+      const shopDomain = getShopDomain();
+      setShop(shopDomain);
       const { data } = await supabase.functions.invoke('shop-config', {
         method: 'GET',
-        headers: { 'x-shop-domain': shop }
+        headers: { 'x-shop-domain': shopDomain }
       });
 
       if (data?.success) {

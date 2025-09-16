@@ -46,9 +46,11 @@ export const CartDrawer = ({
   const loadConfiguration = async () => {
     try {
       setLoading(true);
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = shopDomain || getShopDomain();
       const { data, error } = await supabase.functions.invoke('shop-config', {
         method: 'GET',
-        headers: shopDomain ? { 'x-shop-domain': shopDomain } : {}
+        headers: { 'x-shop-domain': shop }
       });
 
       if (error) throw error;
