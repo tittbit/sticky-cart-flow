@@ -54,7 +54,7 @@ export const ConfigurationPanel = () => {
       }
     } catch {}
     // Then fetch from DB and merge
-    // loadSettings();
+    loadSettings();
   }, []);
 
   const loadSettings = async () => {

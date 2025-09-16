@@ -11,7 +11,7 @@ const corsHeaders = {
 function isValidShopDomain(domain: string | null): domain is string {
   if (!domain) return false;
   try {
-    const d: string = domain.trim().toLowerCase();
+    const d = domain.trim().toLowerCase();
     // Allow myshopify.com or custom domains with at least one dot
     return d.endsWith('.myshopify.com') || /.+\..+/.test(d);
   } catch {
@@ -19,7 +19,7 @@ function isValidShopDomain(domain: string | null): domain is string {
   }
 }
 
-serve(async (req: Request) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -36,18 +36,10 @@ serve(async (req: Request) => {
     const shopParam = url.searchParams.get('shop');
     const shopHeader = req.headers.get('x-shop-domain');
     const shopDomain = shopParam || shopHeader;
-    const apiKey = req.headers.get('x-shopify-api-key');
 
     if (!isValidShopDomain(shopDomain)) {
       return new Response(JSON.stringify({ error: 'Valid shop domain is required' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'Shopify API key is required' }), {
-        status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -62,23 +54,12 @@ serve(async (req: Request) => {
         });
       }
 
-      // Use Shopify Admin API to search for products
-      const adminApiUrl = `https://${shopDomain}/admin/api/2025-10/products.json?title=${encodeURIComponent(q)}`;
+      // Use Shopify's search suggestions endpoint (public)
+      const suggestUrl = `https://${shopDomain}/search/suggest.json?q=${encodeURIComponent(q)}&resources[type]=product&resources[limit]=10`;
 
-      const headers = {
-        'Accept': 'application/json',
-        'X-Shopify-Access-Token': apiKey,
-      };
-
-      console.log('Calling Admin API:', adminApiUrl);
-      console.log('Admin API headers:', headers);
-
-      const resp = await fetch(adminApiUrl, {
-        headers: headers
-      });
-
+      const resp = await fetch(suggestUrl, { headers: { 'Accept': 'application/json' } });
       if (!resp.ok) {
-        console.error('Admin API endpoint failed', resp.status, await resp.text());
+        console.error('Suggest endpoint failed', await resp.text());
         return new Response(JSON.stringify({ error: 'Failed to search products' }), {
           status: 502,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -86,12 +67,12 @@ serve(async (req: Request) => {
       }
 
       const data = await resp.json();
-      const products = (data?.products || []).map((p: any) => ({
+      const products = (data?.resources?.results?.products || []).map((p: any) => ({
         id: String(p.id),
         title: p.title,
         handle: p.handle,
-        price: Number(p.variants?.[0]?.price || 0),
-        image: p.image?.src || null,
+        price: Number(p.price || p.price_min || 0) / 100, // prices in cents
+        image: p.image || p.image_url || null,
       }));
 
       return new Response(JSON.stringify({ success: true, products }), {

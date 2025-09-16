@@ -106,10 +106,7 @@ export const AddOnsManager = () => {
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
       const { data, error } = await supabase.functions.invoke('products-proxy', {
-        headers: { 
-          'x-shop-domain': shop,
-          'x-shopify-api-key': process.env.SHOPIFY_API_KEY || ''
-        },
+        headers: { 'x-shop-domain': shop },
         body: { action: 'search', q: query }
       });
       if (error) throw error;
@@ -138,17 +135,12 @@ export const AddOnsManager = () => {
       const shop = getShopDomain();
 
       const validProducts = addOnProducts.filter(p => 
-        p.product_id.trim() && p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
+        p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
       );
 
-      console.log('Saving add-on products:', validProducts);
-      console.log('Saving add-on products:', validProducts);
       const { data } = await supabase.functions.invoke('addons', {
         method: 'POST',
-        headers: { 
-          'x-shop-domain': shop,
-          'x-shopify-api-key': process.env.SHOPIFY_API_KEY || ''
-        },
+        headers: { 'x-shop-domain': shop },
         body: { products: validProducts }
       });
 

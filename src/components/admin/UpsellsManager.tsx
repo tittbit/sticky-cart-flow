@@ -61,14 +61,8 @@ export const UpsellsManager = () => {
   };
 
   const addUpsellProduct = () => {
-    const newProductId = ''; // Default empty product_id
-    if (upsellProducts.some(p => p.product_id === newProductId)) {
-      toast({ title: 'Duplicate Product', description: 'An upsell product with the same ID already exists.', variant: 'destructive' });
-      return;
-    }
-
     setUpsellProducts(prev => [...prev, {
-      product_id: newProductId,
+      product_id: '',
       product_title: '',
       product_handle: '',
       product_price: 0,
@@ -106,10 +100,7 @@ export const UpsellsManager = () => {
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
       const { data, error } = await supabase.functions.invoke('products-proxy', {
-        headers: { 
-          'x-shop-domain': shop,
-          'x-shopify-api-key': process.env.SHOPIFY_API_KEY || ''
-        },
+        headers: { 'x-shop-domain': shop },
         body: { action: 'search', q: query }
       });
       if (error) throw error;
@@ -123,10 +114,6 @@ export const UpsellsManager = () => {
   };
 
   const selectProduct = (index: number, p: ProductSearchResult) => {
-    if (!p.id || !p.title || !p.handle) {
-      toast({ title: 'Invalid Product', description: 'The selected product is missing required information.', variant: 'destructive' });
-      return;
-    }
     updateUpsellProduct(index, 'product_id', p.id);
     updateUpsellProduct(index, 'product_title', p.title);
     updateUpsellProduct(index, 'product_handle', p.handle);
@@ -142,10 +129,9 @@ export const UpsellsManager = () => {
       const shop = getShopDomain();
 
       const validProducts = upsellProducts.filter(p => 
-        p.product_id.trim() && p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
+        p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
       );
 
-      console.log('Saving upsell products:', validProducts);
       const { data } = await supabase.functions.invoke('upsells', {
         method: 'POST',
         headers: { 'x-shop-domain': shop },

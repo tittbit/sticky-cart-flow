@@ -379,62 +379,31 @@ class StickyCartDrawer {
     `;
 
     drawer.innerHTML = `
-      <div class="cart-drawer-overlay" style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0,0,0,0.5);
-        z-index: 0;
-      "></div>
-      <aside class="cart-drawer-panel">
-        <div class="cart-drawer-header" style="
-          padding: 20px;
-          border-bottom: 1px solid #eee;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        ">
-          <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Your Cart</h2>
-          <button class="cart-drawer-close" style="
-            background: none;
-            border: none;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-          ">×</button>
+      <div class="cart-drawer-overlay"></div>
+      <aside class="cart-drawer-content">
+        <div class="cart-drawer-header">
+          <h2>Shopping Cart (${this.cartData?.item_count || 0})</h2>
+          <button class="cart-drawer-close">✕</button>
         </div>
-        <div class="cart-drawer-body" style="flex: 1; overflow-y: auto; padding: 20px;">
-          <div class="cart-items"></div>
+
+        <div class="cart-drawer-body">
           ${this.settings?.freeShipping?.enabled ? this.createFreeShippingBar() : ''}
+          <div class="cart-items"></div>
           ${this.settings?.upsells?.enabled ? this.createUpsellsSection() : ''}
           ${this.settings?.addOns?.enabled ? this.createAddOnsSection() : ''}
           ${this.settings?.discountBar?.enabled ? this.createDiscountBar() : ''}
+          ${this.settings?.announcementText ? this.createAnnouncementBar() : ''}
         </div>
-        <div class="cart-drawer-footer" style="
-          padding: 20px;
-          border-top: 1px solid #eee;
-          background: white;
-        ">
-          <div class="cart-total" style="margin-bottom: 15px;"></div>
-          <button class="checkout-button" style="
-            width: 100%;
-            padding: 15px;
-            background: ${this.settings?.themeColor || '#000000'};
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.3s ease;
-          ">Checkout</button>
+
+        <div class="cart-drawer-footer">
+          <div class="cart-total">
+            <span class="label">Total:</span>
+            <span class="value">${this.formatCurrency(this.cartData?.total_price / 100 || 0)}</span>
+          </div>
+          <div class="space-y-2">
+            <button class="checkout-button">Proceed to Checkout</button>
+            <button class="continue-shopping-button">Continue Shopping</button>
+          </div>
         </div>
       </aside>
     `;
@@ -450,39 +419,37 @@ class StickyCartDrawer {
 
   createFreeShippingBar() {
     const threshold = this.settings?.freeShipping?.threshold || 50;
+    const currentTotal = this.cartData?.total_price / 100 || 0;
+    const remaining = Math.max(0, threshold - currentTotal);
+    const progress = Math.min(100, (currentTotal / threshold) * 100);
+
     return `
-      <div class="free-shipping-bar" style="
-        margin-bottom: 20px;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 8px;
-      ">
-        <div class="shipping-progress" style="
-          width: 100%;
-          height: 6px;
-          background: #e9ecef;
-          border-radius: 3px;
-          margin-bottom: 8px;
-          overflow: hidden;
-        ">
-          <div class="shipping-progress-bar" style="
-            height: 100%;
-            background: ${this.settings?.themeColor || '#000000'};
-            width: 0%;
-            transition: width 0.3s ease;
-          "></div>
+      <div class="free-shipping-bar">
+        <div class="shipping-text">
+          <span class="font-medium">Free shipping progress</span>
+          ${remaining > 0 ? `
+            <span class="text-muted-foreground">${this.formatCurrency(remaining)} remaining</span>
+          ` : `
+            <span class="badge bg-success text-success-foreground">Free shipping unlocked! 🎉</span>
+          `}
         </div>
-        <div class="shipping-text" style="font-size: 14px; text-align: center;">
-          Add ${this.formatCurrency(threshold)} for free shipping!
+        <div class="shipping-progress">
+          <div class="shipping-progress-bar" style="width: ${progress}%;"></div>
         </div>
+        <p class="text-xs text-muted-foreground">
+          ${remaining > 0 
+            ? `Add ${this.formatCurrency(remaining)} more for free shipping!`
+            : "You've qualified for free shipping!"
+          }
+        </p>
       </div>
     `;
   }
 
   createUpsellsSection() {
     return `
-      <div class="upsells-section" style="margin-bottom: 20px;">
-        <h3 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Frequently Bought Together</h3>
+      <div class="upsells-section">
+        <h3>Frequently bought together</h3>
         <div class="upsells-grid"></div>
       </div>
     `;
@@ -490,8 +457,8 @@ class StickyCartDrawer {
 
   createAddOnsSection() {
     return `
-      <div class="addons-section" style="margin-bottom: 20px;">
-        <h3 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Add Protection</h3>
+      <div class="addons-section">
+        <h3>Protect your purchase</h3>
         <div class="addons-list"></div>
       </div>
     `;
@@ -499,30 +466,20 @@ class StickyCartDrawer {
 
   createDiscountBar() {
     return `
-      <div class="discount-bar" style="
-        margin-bottom: 20px;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        display: flex;
-        gap: 10px;
-      ">
-        <input type="text" class="discount-input" placeholder="Discount code" style="
-          flex: 1;
-          padding: 10px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          font-size: 14px;
-        ">
-        <button class="discount-apply" style="
-          padding: 10px 15px;
-          background: ${this.settings?.themeColor || '#000000'};
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-        ">Apply</button>
+      <div class="discount-bar">
+        <span class="font-medium text-sm">Have a discount code?</span>
+        ${this.settings?.discountCode ? `<span class="badge badge-secondary">${this.settings.discountCode}</span>` : ''}
+        <button class="discount-apply">Apply Discount Code</button>
+      </div>
+    `;
+  }
+
+  createAnnouncementBar() {
+    return `
+      <div class="announcement-bar">
+        <p class="text-sm text-accent-foreground">
+          ${this.settings.announcementText}
+        </p>
       </div>
     `;
   }
@@ -770,11 +727,8 @@ class StickyCartDrawer {
     const upsellsGrid = this.drawer?.querySelector('.upsells-grid');
     if (!upsellsGrid) return;
 
-    console.log('cartData:', this.cartData);
-    console.log('upsellProducts:', this.upsellProducts);
-
     upsellsGrid.innerHTML = this.upsellProducts.slice(0, 3).map(product => {
-      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString().trim() === product.product_id?.toString().trim());
+      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString() === product.product_id?.toString());
       
       return `
         <div class="upsell-item" style="
@@ -824,11 +778,8 @@ class StickyCartDrawer {
     const addOnsList = this.drawer?.querySelector('.addons-list');
     if (!addOnsList) return;
 
-    console.log('cartData:', this.cartData);
-    console.log('addOnProducts:', this.addOnProducts);
-
     addOnsList.innerHTML = this.addOnProducts.map((addon, index) => {
-      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString().trim() === addon.product_id?.toString().trim());
+      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString() === addon.product_id?.toString());
       
       return `
         <div class="addon-item" style="
