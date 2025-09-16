@@ -120,6 +120,10 @@ export const UpsellsManager = () => {
   };
 
   const selectProduct = (index: number, p: ProductSearchResult) => {
+    if (!p.id || !p.title || !p.handle) {
+      toast({ title: 'Invalid Product', description: 'The selected product is missing required information.', variant: 'destructive' });
+      return;
+    }
     updateUpsellProduct(index, 'product_id', p.id);
     updateUpsellProduct(index, 'product_title', p.title);
     updateUpsellProduct(index, 'product_handle', p.handle);

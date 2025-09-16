@@ -139,6 +139,7 @@ export const AddOnsManager = () => {
       );
 
       console.log('Saving add-on products:', validProducts);
+      console.log('Saving add-on products:', validProducts);
       const { data } = await supabase.functions.invoke('addons', {
         method: 'POST',
         headers: { 'x-shop-domain': shop },
