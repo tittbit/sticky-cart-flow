@@ -1,24 +1,11 @@
 {% comment %} App Embed to load Sticky Cart Drawer assets and expose settings {% endcomment %}
 
 {%- comment -%}
-We expose settings via a global to avoid relying on App Proxy for basic rendering.
+Only expose enabled status - all other settings loaded from Supabase database
 {%- endcomment -%}
 <script>
-  window.STICKY_CART_SETTINGS = {
-    enabled: {{ block.settings.enabled | default: true | json }},
-    stickyButton: {
-      enabled: {{ block.settings.sticky_button_enabled | default: true | json }},
-      text: {{ block.settings.sticky_button_text | default: "Cart" | json }},
-      position: {{ block.settings.sticky_button_position | default: "bottom-right" | json }}
-    },
-    freeShipping: {
-      enabled: {{ block.settings.free_shipping_enabled | default: false | json }},
-      threshold: {{ block.settings.free_shipping_threshold | default: 50 | json }}
-    },
-    upsells: { enabled: {{ block.settings.upsells_enabled | default: false | json }} },
-    addOns: { enabled: {{ block.settings.add_ons_enabled | default: false | json }} },
-    discountBar: { enabled: {{ block.settings.discount_bar_enabled | default: false | json }} }
-  };
+  window.CART_DRAWER_ENABLED = {{ block.settings.enabled | default: true | json }};
+  window.SHOP_DOMAIN = {{ shop.permanent_domain | json }};
 </script>
 
 {% schema %}
@@ -28,36 +15,13 @@ We expose settings via a global to avoid relying on App Proxy for basic renderin
   "javascript": "cart-drawer.js",
   "stylesheet": "cart-drawer.css",
   "settings": [
-    { "type": "checkbox", "id": "enabled", "label": "Enable cart drawer", "default": true },
-
-    { "type": "header", "content": "Sticky Button" },
-    { "type": "checkbox", "id": "sticky_button_enabled", "label": "Show sticky cart button", "default": true },
-    { "type": "text", "id": "sticky_button_text", "label": "Button text", "default": "Cart" },
-    {
-      "type": "select",
-      "id": "sticky_button_position",
-      "label": "Button position",
-      "default": "bottom-right",
-      "options": [
-        { "value": "bottom-right", "label": "Bottom right" },
-        { "value": "bottom-left", "label": "Bottom left" },
-        { "value": "top-right", "label": "Top right" },
-        { "value": "top-left", "label": "Top left" }
-      ]
-    },
-
-    { "type": "header", "content": "Free Shipping Bar" },
-    { "type": "checkbox", "id": "free_shipping_enabled", "label": "Enable free shipping bar", "default": true },
-    { "type": "number", "id": "free_shipping_threshold", "label": "Threshold (in store currency)", "default": 50 },
-
-    { "type": "header", "content": "Upsells" },
-    { "type": "checkbox", "id": "upsells_enabled", "label": "Enable upsells", "default": false },
-
-    { "type": "header", "content": "Add-ons" },
-    { "type": "checkbox", "id": "add_ons_enabled", "label": "Enable add-ons", "default": false },
-
-    { "type": "header", "content": "Discount Bar" },
-    { "type": "checkbox", "id": "discount_bar_enabled", "label": "Enable discount bar", "default": false }
+    { 
+      "type": "checkbox", 
+      "id": "enabled", 
+      "label": "Enable Sticky Cart Drawer", 
+      "default": true,
+      "info": "All settings are configured from the app dashboard. This only enables/disables the cart drawer."
+    }
   ]
 }
 {% endschema %}

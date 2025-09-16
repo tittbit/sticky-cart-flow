@@ -28,6 +28,7 @@ class ShopifyCartIntegration {
 
   async loadSettings() {
     try {
+      // Load settings from Supabase via function
       const response = await fetch(`https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/shop-config`, {
         headers: {
           'Content-Type': 'application/json',
@@ -37,7 +38,7 @@ class ShopifyCartIntegration {
       
       if (response.ok) {
         const data = await response.json();
-        this.settings = data.settings;
+        this.settings = data.settings || {};
       } else {
         throw new Error('Failed to load settings');
       }

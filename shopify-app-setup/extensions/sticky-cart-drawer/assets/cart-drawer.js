@@ -29,19 +29,23 @@ class StickyCartDrawer {
 
   async loadSettings() {
     try {
-      // 1) Prefer settings injected by the App Embed (no network dependency)
-      if (window && window.STICKY_CART_SETTINGS) {
-        this.settings = window.STICKY_CART_SETTINGS;
+      // Check if cart drawer is enabled from theme extension
+      if (!window.CART_DRAWER_ENABLED) {
+        this.settings = { enabled: false };
         return;
       }
 
-      // 2) Fallback to App Proxy (requires proper proxy configuration)
-      const response = await fetch('/tools/cart-drawer/settings', { headers: { 'Cache-Control': 'no-store' } });
+      // Load settings from Supabase via proxy
+      const shopDomain = window.SHOP_DOMAIN || window.location.hostname;
+      const response = await fetch('/tools/cart-drawer/settings?shop=' + encodeURIComponent(shopDomain), { 
+        headers: { 'Cache-Control': 'no-store' } 
+      });
+      
       if (!response.ok) throw new Error('Settings fetch failed');
       this.settings = await response.json();
     } catch (error) {
       console.error('Failed to load cart drawer settings:', error);
-      // 3) Last resort safe defaults so the cart still appears
+      // Fallback defaults
       this.settings = {
         enabled: true,
         stickyButton: { enabled: true, text: 'Cart', position: 'bottom-right' },
@@ -157,16 +161,59 @@ class StickyCartDrawer {
   }
 
   bindEvents() {
-    // Listen for add to cart events
-    document.addEventListener('cart:item-added', () => {
-      this.loadCartData();
-      this.openDrawer();
-    });
+    // Intercept all add to cart form submissions
+    document.addEventListener('submit', (e) => {
+      const target = e.target;
+      if (target && target.matches && target.matches('form[action*="/cart/add"], form.cart, form[action*="/cart/add.js"]')) {
+        e.preventDefault();
+        this.handleAddToCart(target);
+      }
+    }, true);
+
+    // Intercept clicks on common ATC buttons
+    document.addEventListener('click', (e) => {
+      const el = e.target;
+      if (!el || !(el instanceof Element)) return;
+      const button = el.closest('button, a, input[type="submit"]');
+      if (!button) return;
+      if (
+        button.matches('.btn-add-to-cart, [data-add-to-cart], .product-form__cart-submit, [name="add"], #AddToCart, button[type="submit"], .add-to-cart')
+      ) {
+        const form = button.closest('form[action*="/cart/add"], form.cart, form[action*="/cart/add.js"]');
+        if (form) {
+          e.preventDefault();
+          this.handleAddToCart(form);
+        }
+      }
+    }, true);
 
     // Listen for Shopify cart changes
     document.addEventListener('shopify:section:load', () => {
       this.loadCartData();
     });
+  }
+
+  async handleAddToCart(form) {
+    try {
+      // Submit the form data to Shopify
+      const formData = new FormData(form);
+      const response = await fetch('/cart/add.js', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        // Reload cart data and open drawer
+        await this.loadCartData();
+        this.openDrawer();
+      } else {
+        throw new Error('Failed to add to cart');
+      }
+    } catch (error) {
+      console.error('Add to cart failed:', error);
+      // Fallback to normal form submission
+      form.submit();
+    }
   }
 
   updateUI() {
