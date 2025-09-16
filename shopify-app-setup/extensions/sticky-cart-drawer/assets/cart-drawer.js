@@ -35,7 +35,8 @@ class StickyCartDrawer {
       return;
     }
     
-    // Initialize components (sticky button handled by React component)
+    // Initialize components
+    this.createStickyButton();
     this.createCartDrawer();
     this.bindEvents();
     this.exposeGlobalMethods();
@@ -268,6 +269,52 @@ class StickyCartDrawer {
     };
   }
 
+  createStickyButton() {
+    try {
+      if (!this.settings?.stickyButton?.enabled) return;
+      const button = document.createElement('button');
+      button.className = 'sticky-cart-button';
+      button.setAttribute('data-cart-source', 'extension');
+      button.style.cssText = `
+        position: fixed;
+        z-index: 9999;
+        padding: 12px 16px;
+        background: ${this.settings.themeColor || '#000000'};
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: all 0.3s ease;`;
+
+      const position = this.settings.stickyButton.position || 'bottom-right';
+      const map = {
+        'bottom-right': { bottom: '20px', right: '20px' },
+        'bottom-left': { bottom: '20px', left: '20px' },
+        'top-right': { top: '20px', right: '20px' },
+        'top-left': { top: '20px', left: '20px' }
+      };
+      Object.assign(button.style, map[position] || map['bottom-right']);
+
+      button.innerHTML = `
+        <span class="cart-icon">🛒</span>
+        <span class="cart-text">${this.settings.stickyButton.text || 'Cart'}</span>
+        <span class="cart-count" style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 10px; font-size: 12px; display: none;">0</span>
+      `;
+
+      button.addEventListener('click', () => this.toggleDrawer());
+      document.body.appendChild(button);
+      this.stickyButton = button;
+    } catch (e) {
+      console.warn('Failed to create sticky button', e);
+    }
+  }
+
   createCartDrawer() {
     // Inject minimal styles once for open/close transitions
     const styleId = 'scd-styles';
@@ -466,7 +513,9 @@ class StickyCartDrawer {
 
     // Capture clicks early to stop theme default cart/drawer from opening
     document.addEventListener('click', (e) => {
-      const target = e.target;
+      const raw = e.target;
+      const target = raw && (raw.nodeType === 1 ? raw : raw.parentElement);
+      if (!target) return;
       // Skip if it's our React sticky button
       if (target.closest('.sticky-cart-button') || target.closest('[data-cart-source="react"]')) {
         return;
@@ -483,7 +532,10 @@ class StickyCartDrawer {
 
     // Bubble phase: intercept add-to-cart buttons
     document.addEventListener('click', (e) => {
-      const addBtn = (e.target as HTMLElement).closest('[name="add"], .btn-add-to-cart, [data-add-to-cart], .add-to-cart, .product-form__cart-submit');
+      const raw = e.target;
+      const target = raw && (raw.nodeType === 1 ? raw : raw.parentElement);
+      if (!target) return;
+      const addBtn = target.closest('[name="add"], .btn-add-to-cart, [data-add-to-cart], .add-to-cart, .product-form__cart-submit');
       if (addBtn) {
         const form = addBtn.closest('form');
         if (form?.action?.includes('/cart/add')) {
@@ -532,6 +584,20 @@ class StickyCartDrawer {
     window.dispatchEvent(new CustomEvent('cart:itemCountUpdated', { 
       detail: { count: this.cartData.item_count || 0 }
     }));
+
+    // Update sticky button if present (storefront)
+    if (this.stickyButton) {
+      const countEl = this.stickyButton.querySelector('.cart-count');
+      const textEl = this.stickyButton.querySelector('.cart-text');
+      if (countEl) {
+        const c = this.cartData.item_count || 0;
+        countEl.textContent = c.toString();
+        countEl.style.display = c > 0 ? 'block' : 'none';
+      }
+      if (textEl && this.settings?.stickyButton?.text) {
+        textEl.textContent = this.settings.stickyButton.text;
+      }
+    }
 
     // Update drawer content
     if (this.drawer) {
