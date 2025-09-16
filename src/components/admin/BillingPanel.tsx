@@ -28,10 +28,12 @@ export const BillingPanel = () => {
 
   const loadBillingData = async () => {
     try {
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
       const { data, error } = await supabase.functions.invoke('billing', {
         method: 'GET',
         headers: {
-          'x-shop-domain': 'demo-shop.myshopify.com'
+          'x-shop-domain': shop
         }
       });
 
@@ -48,10 +50,12 @@ export const BillingPanel = () => {
   const handlePlanChange = async (planId: string) => {
     try {
       setUpgrading(true);
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
       const { data, error } = await supabase.functions.invoke('billing', {
         method: 'POST',
         headers: {
-          'x-shop-domain': 'demo-shop.myshopify.com'
+          'x-shop-domain': shop
         },
         body: {
           action: 'change_plan',
