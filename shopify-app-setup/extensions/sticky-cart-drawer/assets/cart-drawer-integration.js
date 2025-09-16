@@ -28,9 +28,10 @@ class ShopifyCartIntegration {
 
   async loadSettings() {
     try {
-      const response = await fetch(`https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/shop-config?shop=${this.shopDomain}`, {
+      const response = await fetch(`https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/shop-config`, {
         headers: {
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZnp4bXBzY25kem51YWVveGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDY2NzQsImV4cCI6MjA3MzI4MjY3NH0.xB_mlFv8uai35Vpil4yVsu1QqXyaa4IY9rHiYzbftAg'
+          'Content-Type': 'application/json',
+          'x-shop-domain': this.shopDomain
         }
       });
       
@@ -53,24 +54,31 @@ class ShopifyCartIntegration {
   }
 
   interceptAddToCart() {
-    // Override all add to cart forms
+    // Intercept all add to cart form submissions
     document.addEventListener('submit', (e) => {
-      if (e.target.matches('form[action*="/cart/add"]')) {
+      const target = e.target;
+      if (target && target.matches && target.matches('form[action*="/cart/add"], form.cart, form[action*="/cart/add.js"]')) {
         e.preventDefault();
-        this.handleAddToCart(e.target);
+        this.handleAddToCart(target);
       }
-    });
+    }, true);
 
-    // Override add to cart buttons
+    // Intercept clicks on common ATC buttons
     document.addEventListener('click', (e) => {
-      if (e.target.matches('.btn-add-to-cart, [data-add-to-cart], .product-form__cart-submit')) {
-        const form = e.target.closest('form[action*="/cart/add"]');
+      const el = e.target;
+      if (!el || !(el instanceof Element)) return;
+      const button = el.closest('button, a, input[type="submit"]');
+      if (!button) return;
+      if (
+        button.matches('.btn-add-to-cart, [data-add-to-cart], .product-form__cart-submit, [name="add"], #AddToCart, button[type="submit"], .add-to-cart')
+      ) {
+        const form = button.closest('form[action*="/cart/add"], form.cart, form[action*="/cart/add.js"]');
         if (form) {
           e.preventDefault();
           this.handleAddToCart(form);
         }
       }
-    });
+    }, true);
   }
 
   async handleAddToCart(form) {

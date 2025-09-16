@@ -81,6 +81,10 @@ export const CartDrawer = ({
     }
   };
 
+  // Currency: prefer storefront currency if available
+  const storefrontCurrency = (typeof window !== 'undefined') ? (window as any)?.Shopify?.currency?.active : undefined;
+  const displayCurrency = storefrontCurrency || currency;
+
   const freeShippingThreshold = settings?.freeShippingThreshold || 75;
   const remainingForFreeShipping = Math.max(0, freeShippingThreshold - total);
   const freeShippingProgress = Math.min(100, (total / freeShippingThreshold) * 100);
@@ -165,7 +169,7 @@ export const CartDrawer = ({
                   <span className="font-medium">Free shipping progress</span>
                   {remainingForFreeShipping > 0 ? (
                   <span className="text-muted-foreground">
-                    {currency} {remainingForFreeShipping.toFixed(2)} remaining
+                    {displayCurrency} {remainingForFreeShipping.toFixed(2)} remaining
                   </span>
                   ) : (
                     <Badge className="bg-success text-success-foreground">
@@ -181,7 +185,7 @@ export const CartDrawer = ({
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {remainingForFreeShipping > 0 
-                    ? `Add ${currency} ${remainingForFreeShipping.toFixed(2)} more for free shipping!`
+                    ? `Add ${displayCurrency} ${remainingForFreeShipping.toFixed(2)} more for free shipping!`
                     : "You've qualified for free shipping!"
                   }
                 </p>
@@ -228,7 +232,7 @@ export const CartDrawer = ({
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className="font-semibold text-sm">
-                          {currency} {(item.price * item.quantity).toFixed(2)}
+                          {displayCurrency} {(item.price * item.quantity).toFixed(2)}
                         </span>
                         <Button 
                           variant="ghost" 

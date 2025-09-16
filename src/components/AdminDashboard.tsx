@@ -23,18 +23,19 @@ export const AdminDashboard = () => {
 
   const loadQuickStats = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('analytics', {
-        method: 'GET'
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
+      const { data } = await supabase.functions.invoke('analytics', {
+        method: 'GET',
+        headers: { 'x-shop-domain': shop }
       });
-
-      if (error) throw error;
 
       if (data?.success) {
         setQuickStats({
           cartOpens: data.metrics.cartOpens || 0,
           conversions: data.metrics.conversions || 0,
-          aovIncrease: data.metrics.avgOrderValue > 0 ? 
-            Math.round(((data.metrics.avgOrderValue - 50) / 50) * 100) : 0 // Assuming baseline AOV of $50
+          aovIncrease: data.metrics.avgOrderValue > 0 ?
+            Math.round(((data.metrics.avgOrderValue - 50) / 50) * 100) : 0
         });
       }
     } catch (error) {

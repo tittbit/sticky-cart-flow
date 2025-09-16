@@ -44,29 +44,25 @@ export const ConfigurationPanel = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('shop-config', {
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
+      // Persist for other pages
+      localStorage.setItem('shop_domain', shop);
+
+      const { data } = await supabase.functions.invoke('shop-config', {
         method: 'GET',
-        headers: {
-          'x-shop-domain': 'demo-shop.myshopify.com'
-        }
+        headers: { 'x-shop-domain': shop }
       });
 
       if (data?.success && data.settings) {
-        setSettings(prev => ({
-          ...prev,
-          ...data.settings
-        }));
+        setSettings(prev => ({ ...prev, ...data.settings }));
       }
     } catch (error) {
       console.error('Error loading settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load settings.",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: 'Failed to load settings.', variant: 'destructive' });
     } finally {
       setLoading(false);
-    }  
+    }
   };
 
   const handleSettingChange = (key: string, value: any) => {
@@ -76,31 +72,25 @@ export const ConfigurationPanel = () => {
   const handleSave = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('shop-config', {
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
+
+      const { data } = await supabase.functions.invoke('shop-config', {
         method: 'POST',
-        headers: {
-          'x-shop-domain': 'demo-shop.myshopify.com'
-        },
-        body: {
-          settings
-        }
+        headers: { 'x-shop-domain': shop },
+        body: { settings }
       });
 
       if (data?.success) {
-        toast({
-          title: "Settings saved!",
-          description: "Your cart drawer configuration has been updated.",
-        });
+        // Let preview reflect instantly
+        window.dispatchEvent(new CustomEvent('shop-config:updated', { detail: settings }));
+        toast({ title: 'Settings saved!', description: 'Your cart drawer configuration has been updated.' });
       } else {
         throw new Error(data?.error || 'Failed to save settings');
       }
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: 'Error', description: 'Failed to save settings. Please try again.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }

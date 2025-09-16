@@ -29,11 +29,11 @@ export const AnalyticsDashboard = () => {
 
   const loadAnalytics = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('analytics', {
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
+      const { data } = await supabase.functions.invoke('analytics', {
         method: 'GET',
-        headers: {
-          'x-shop-domain': 'demo-shop.myshopify.com'
-        }
+        headers: { 'x-shop-domain': shop }
       });
 
       if (data?.success) {
@@ -58,11 +58,11 @@ export const AnalyticsDashboard = () => {
 
     for (const event of demoEvents) {
       try {
+        const { getShopDomain } = await import('@/lib/shop');
+        const shop = getShopDomain();
         await supabase.functions.invoke('analytics', {
           method: 'POST',
-          headers: {
-            'x-shop-domain': 'demo-shop.myshopify.com'
-          },
+          headers: { 'x-shop-domain': shop },
           body: event
         });
       } catch (error) {

@@ -40,23 +40,29 @@ export const CartDrawerPreview = () => {
   useEffect(() => {
     loadConfiguration();
     loadIntegrationStatus();
-    
-    // Listen for configuration changes
-    const interval = setInterval(() => {
-      loadConfiguration();
-    }, 5000); // Refresh every 5 seconds
 
-    return () => clearInterval(interval);
+    // Live apply settings pushed from admin save
+    const onConfigUpdate = (e: any) => setSettings(e.detail);
+    window.addEventListener('shop-config:updated', onConfigUpdate as EventListener);
+
+    // Periodic refresh as fallback
+    const interval = setInterval(loadConfiguration, 10000);
+
+    return () => {
+      window.removeEventListener('shop-config:updated', onConfigUpdate as EventListener);
+      clearInterval(interval);
+    };
   }, []);
 
   const loadConfiguration = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('shop-config', {
-        method: 'GET'
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
+      const { data } = await supabase.functions.invoke('shop-config', {
+        method: 'GET',
+        headers: { 'x-shop-domain': shop }
       });
 
-      if (error) throw error;
-      
       if (data?.success) {
         setSettings(data.settings);
       }
@@ -89,34 +95,27 @@ export const CartDrawerPreview = () => {
 
   const testAnalytics = async () => {
     try {
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
       // Send test analytics event
       const { error } = await supabase.functions.invoke('analytics', {
         method: 'POST',
+        headers: { 'x-shop-domain': shop },
         body: {
           eventType: 'cart_test',
           sessionId: 'preview-session',
           cartTotal: cartTotal,
           itemCount: itemCount,
-          eventData: {
-            test: true,
-            source: 'preview'
-          }
+          eventData: { test: true, source: 'preview' }
         }
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Analytics Test Successful",
-        description: "Test event sent to analytics system"
-      });
+      toast({ title: 'Analytics Test Successful', description: 'Test event sent to analytics system' });
     } catch (error) {
       console.error('Analytics test failed:', error);
-      toast({
-        title: "Analytics Test Failed", 
-        description: "Could not send test event",
-        variant: "destructive"
-      });
+      toast({ title: 'Analytics Test Failed', description: 'Could not send test event', variant: 'destructive' });
     }
   };
 
