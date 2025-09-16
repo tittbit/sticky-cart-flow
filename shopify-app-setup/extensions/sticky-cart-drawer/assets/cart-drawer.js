@@ -29,32 +29,81 @@ class StickyCartDrawer {
 
   async loadSettings() {
     try {
-      // Check if cart drawer is enabled from theme extension
-      if (!window.CART_DRAWER_ENABLED) {
+      // Respect app embed toggle (script usually not injected when disabled)
+      if (typeof window !== 'undefined' && window.CART_DRAWER_ENABLED === false) {
         this.settings = { enabled: false };
         return;
       }
 
-      // Load settings from Supabase via proxy
       const shopDomain = window.SHOP_DOMAIN || window.location.hostname;
-      const response = await fetch('/tools/cart-drawer/settings?shop=' + encodeURIComponent(shopDomain), { 
-        headers: { 'Cache-Control': 'no-store' } 
+
+      // Load settings directly from Supabase Edge Function
+      const res = await fetch('https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/shop-config', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store',
+          'x-shop-domain': shopDomain
+        },
+        method: 'GET'
       });
-      
-      if (!response.ok) throw new Error('Settings fetch failed');
-      this.settings = await response.json();
+
+      if (!res.ok) throw new Error('Settings fetch failed');
+
+      const data = await res.json();
+      this.settings = this.normalizeSettings(data.settings || {});
     } catch (error) {
       console.error('Failed to load cart drawer settings:', error);
-      // Fallback defaults
-      this.settings = {
-        enabled: true,
-        stickyButton: { enabled: true, text: 'Cart', position: 'bottom-right' },
-        freeShipping: { enabled: true, threshold: 50 },
-        upsells: { enabled: false },
-        addOns: { enabled: false },
-        discountBar: { enabled: false },
-      };
+      // Safe minimal defaults; everything else configurable from dashboard
+      this.settings = this.normalizeSettings({});
     }
+  }
+
+  normalizeSettings(raw) {
+    // Accept both old nested shape and new flat shape from dashboard
+    const nested = typeof raw?.stickyButton === 'object' || typeof raw?.freeShipping === 'object';
+
+    const enabled = nested
+      ? (raw?.enabled ?? true)
+      : (raw?.cartDrawerEnabled ?? true);
+
+    const stickyButton = nested
+      ? {
+          enabled: raw?.stickyButton?.enabled ?? true,
+          text: raw?.stickyButton?.text ?? 'Cart',
+          position: raw?.stickyButton?.position ?? 'bottom-right',
+        }
+      : {
+          enabled: raw?.stickyButtonEnabled ?? true,
+          text: raw?.stickyButtonText ?? 'Cart',
+          position: raw?.stickyButtonPosition ?? 'bottom-right',
+        };
+
+    const freeShipping = nested
+      ? {
+          enabled: raw?.freeShipping?.enabled ?? false,
+          threshold: raw?.freeShipping?.threshold ?? 50,
+        }
+      : {
+          enabled: raw?.freeShippingEnabled ?? false,
+          threshold: raw?.freeShippingThreshold ?? 50,
+        };
+
+    return {
+      enabled,
+      stickyButton,
+      freeShipping,
+      upsells: nested
+        ? { enabled: raw?.upsells?.enabled ?? false }
+        : { enabled: raw?.upsellsEnabled ?? false },
+      addOns: nested
+        ? { enabled: raw?.addOns?.enabled ?? false }
+        : { enabled: raw?.addOnsEnabled ?? false },
+      discountBar: nested
+        ? { enabled: raw?.discountBar?.enabled ?? false }
+        : { enabled: raw?.discountBarEnabled ?? false },
+      announcementText: raw?.announcementText ?? '',
+      discountCode: raw?.discountCode ?? '',
+    };
   }
 
   async loadCartData() {
