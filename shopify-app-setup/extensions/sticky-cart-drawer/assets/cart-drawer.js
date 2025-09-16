@@ -770,8 +770,11 @@ class StickyCartDrawer {
     const upsellsGrid = this.drawer?.querySelector('.upsells-grid');
     if (!upsellsGrid) return;
 
+    console.log('cartData:', this.cartData);
+    console.log('upsellProducts:', this.upsellProducts);
+
     upsellsGrid.innerHTML = this.upsellProducts.slice(0, 3).map(product => {
-      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString() === product.product_id?.toString());
+      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString().trim() === product.product_id?.toString().trim());
       
       return `
         <div class="upsell-item" style="
@@ -821,8 +824,11 @@ class StickyCartDrawer {
     const addOnsList = this.drawer?.querySelector('.addons-list');
     if (!addOnsList) return;
 
+    console.log('cartData:', this.cartData);
+    console.log('addOnProducts:', this.addOnProducts);
+
     addOnsList.innerHTML = this.addOnProducts.map((addon, index) => {
-      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString() === addon.product_id?.toString());
+      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString().trim() === addon.product_id?.toString().trim());
       
       return `
         <div class="addon-item" style="
