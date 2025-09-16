@@ -61,7 +61,30 @@ export const ConfigurationPanel = () => {
       });
 
       if (data?.success && data.settings) {
-        setSettings(prev => ({ ...prev, ...data.settings }));
+        const s = data.settings;
+        // Map normalized keys -> panel state keys for backward compatibility
+        const mapped = {
+          cartDrawerEnabled: s.cartDrawerEnabled ?? s.enabled ?? true,
+          drawerPosition: s.drawerPosition || 'right',
+          themeColor: s.themeColor || '#3B82F6',
+
+          stickyButtonEnabled: s.stickyButtonEnabled ?? s.stickyButton?.enabled ?? true,
+          buttonText: s.stickyButtonText ?? s.buttonText ?? s.stickyButton?.text ?? 'Cart',
+          buttonPosition: s.stickyButtonPosition ?? s.buttonPosition ?? s.stickyButton?.position ?? 'bottom-right',
+
+          upsellsEnabled: s.upsellsEnabled ?? s.upsells?.enabled ?? false,
+          addOnsEnabled: s.addOnsEnabled ?? s.addOns?.enabled ?? false,
+          freeShippingBarEnabled: s.freeShippingBarEnabled ?? s.freeShippingEnabled ?? s.freeShipping?.enabled ?? false,
+          discountPromoEnabled: s.discountPromoEnabled ?? s.discountBarEnabled ?? s.discountBar?.enabled ?? false,
+
+          freeShippingThreshold: Number(s.freeShippingThreshold ?? s.freeShipping?.threshold ?? 75),
+          discountCode: s.discountCode || '',
+          announcementText: s.announcementText || '',
+
+          googleAnalyticsId: s.googleAnalyticsId || '',
+          facebookPixelId: s.facebookPixelId || ''
+        };
+        setSettings(prev => ({ ...prev, ...mapped }));
       }
     } catch (error) {
       console.error('Error loading settings:', error);
