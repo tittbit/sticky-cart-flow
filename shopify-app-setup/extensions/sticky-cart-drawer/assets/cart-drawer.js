@@ -192,26 +192,18 @@ class StickyCartDrawer {
   }
 
   formatCurrency(amount) {
-    const currencySymbols = {
-      'USD': '$',
-      'EUR': '€',
-      'GBP': '£',
-      'CAD': 'C$',
-      'AUD': 'A$',
-      'JPY': '¥',
-      'CNY': '¥',
-      'INR': '₹'
-    };
-
-    const symbol = currencySymbols[this.shopCurrency] || this.shopCurrency;
     const value = typeof amount === 'number' ? amount : parseFloat(amount) || 0;
-    
-    // Format based on currency
-    if (this.shopCurrency === 'JPY' || this.shopCurrency === 'KRW') {
-      return `${symbol}${Math.round(value)}`;
+    try {
+      return new Intl.NumberFormat(navigator.language || 'en-US', {
+        style: 'currency',
+        currency: this.shopCurrency || 'USD',
+        currencyDisplay: 'symbol',
+        maximumFractionDigits: 2,
+      }).format(value);
+    } catch {
+      // Fallback
+      return `${this.shopCurrency || 'USD'} ${value.toFixed(2)}`;
     }
-    
-    return `${symbol}${value.toFixed(2)}`;
   }
 
   async loadCartData() {
@@ -221,9 +213,6 @@ class StickyCartDrawer {
       
       this.cartData = await response.json();
       this.updateUI();
-      
-      // Track cart open event
-      this.trackEvent('cart_open');
     } catch (error) {
       console.error('Failed to load cart data:', error);
     }
@@ -241,13 +230,13 @@ class StickyCartDrawer {
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZnp4bXBzY25kem51YWVveGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDY2NzQsImV4cCI6MjA3MzI4MjY3NH0.xB_mlFv8uai35Vpil4yVsu1QqXyaa4IY9rHiYzbftAg'
         },
         body: JSON.stringify({
-          event_type: eventType,
-          shop_domain: this.shopDomain,
-          session_id: this.getSessionId(),
-          cart_total: this.cartData?.total_price ? (this.cartData.total_price / 100) : 0,
-          item_count: this.cartData?.item_count || 0,
-          user_agent: navigator.userAgent,
-          event_data: additionalData
+          eventType,
+          sessionId: this.getSessionId(),
+          cartTotal: this.cartData?.total_price ? (this.cartData.total_price / 100) : 0,
+          itemCount: this.cartData?.item_count || 0,
+          productId: additionalData?.productId,
+          variantId: additionalData?.variantId,
+          eventData: additionalData || {}
         })
       });
     } catch (error) {
@@ -322,15 +311,12 @@ class StickyCartDrawer {
     drawer.style.cssText = `
       position: fixed;
       top: 0;
-      right: -400px;
-      width: 400px;
-      height: 100vh;
-      background: white;
+      left: 0;
+      width: 100%;
+      height: 100%;
       z-index: 10000;
-      transition: right 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      box-shadow: -4px 0 12px rgba(0,0,0,0.15);
+      pointer-events: none;
+      transition: all 0.3s ease;
     `;
 
     drawer.innerHTML = `
@@ -494,15 +480,21 @@ class StickyCartDrawer {
       }
     });
 
-    // Intercept add to cart clicks
+    // Intercept add to cart clicks and cart open links
     document.addEventListener('click', (e) => {
-      const button = e.target.closest('[name="add"], .btn-add-to-cart, [data-add-to-cart], .add-to-cart, .product-form__cart-submit');
-      if (button) {
-        const form = button.closest('form');
+      const addBtn = e.target.closest('[name="add"], .btn-add-to-cart, [data-add-to-cart], .add-to-cart, .product-form__cart-submit');
+      if (addBtn) {
+        const form = addBtn.closest('form');
         if (form?.action?.includes('/cart/add')) {
           e.preventDefault();
           this.handleAddToCart(form);
+          return;
         }
+      }
+      const cartLink = e.target.closest('a[href="/cart"], a[href^="#cart"], [data-open-cart], button[name="cart"], .js-drawer-open-cart');
+      if (cartLink) {
+        e.preventDefault();
+        this.openDrawer();
       }
     });
   }
@@ -751,9 +743,7 @@ class StickyCartDrawer {
   openDrawer() {
     if (!this.drawer) return;
 
-    this.drawer.style.right = '0px';
-    this.drawer.querySelector('.cart-drawer-overlay').style.opacity = '1';
-    this.drawer.querySelector('.cart-drawer-overlay').style.visibility = 'visible';
+    this.drawer.classList.add('open');
     this.isOpen = true;
     document.body.style.overflow = 'hidden';
     
@@ -763,9 +753,7 @@ class StickyCartDrawer {
   closeDrawer() {
     if (!this.drawer) return;
 
-    this.drawer.style.right = '-400px';
-    this.drawer.querySelector('.cart-drawer-overlay').style.opacity = '0';
-    this.drawer.querySelector('.cart-drawer-overlay').style.visibility = 'hidden';
+    this.drawer.classList.remove('open');
     this.isOpen = false;
     document.body.style.overflow = '';
   }

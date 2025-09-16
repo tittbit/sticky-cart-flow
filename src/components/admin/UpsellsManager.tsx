@@ -226,7 +226,7 @@ export const UpsellsManager = () => {
                       )}
                       <div className="flex-1">
                         <div className="font-medium line-clamp-1">{p.title}</div>
-                        <div className="text-sm text-muted-foreground">${'{'}p.price.toFixed(2){'}'}</div>
+                        <div className="text-sm text-muted-foreground">{"$" + p.price.toFixed(2)}</div>
                       </div>
                       <Button size="sm" variant="outline" onClick={() => selectProduct(index, p)}>Select</Button>
                     </div>
