@@ -106,7 +106,10 @@ export const AddOnsManager = () => {
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
       const { data, error } = await supabase.functions.invoke('products-proxy', {
-        headers: { 'x-shop-domain': shop },
+        headers: { 
+          'x-shop-domain': shop,
+          'x-shopify-api-key': process.env.SHOPIFY_API_KEY || ''
+        },
         body: { action: 'search', q: query }
       });
       if (error) throw error;
