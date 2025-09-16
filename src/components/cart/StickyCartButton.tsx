@@ -3,6 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 
+// Global window type extension
+declare global {
+  interface Window {
+    stickyCartDrawer?: {
+      openDrawer: () => void;
+      closeDrawer: () => void;
+      toggleDrawer: () => void;
+      updateItemCount: (count: number) => void;
+    };
+  }
+}
+
 interface StickyCartButtonProps {
   itemCount: number;
   onClick: () => void;
@@ -22,10 +34,25 @@ export const StickyCartButton = ({
 }: StickyCartButtonProps) => {
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [currentItemCount, setCurrentItemCount] = useState(itemCount);
 
   useEffect(() => {
     loadConfiguration();
   }, [shopDomain]);
+
+  useEffect(() => {
+    setCurrentItemCount(itemCount);
+  }, [itemCount]);
+
+  useEffect(() => {
+    // Listen for cart updates from the JavaScript drawer
+    const handleCartUpdate = (e: CustomEvent) => {
+      setCurrentItemCount(e.detail.count);
+    };
+    
+    window.addEventListener('cart:itemCountUpdated', handleCartUpdate as EventListener);
+    return () => window.removeEventListener('cart:itemCountUpdated', handleCartUpdate as EventListener);
+  }, []);
 
   const loadConfiguration = async () => {
     try {
@@ -74,12 +101,22 @@ export const StickyCartButton = ({
     "top-left": "top-6 left-6",
   };
 
+  const handleClick = () => {
+    // Try to use the global drawer if available, otherwise fallback to React onClick
+    if (window.stickyCartDrawer) {
+      window.stickyCartDrawer.openDrawer();
+    } else {
+      onClick();
+    }
+  };
+
   return (
     <div className={`fixed ${positionClasses[actualPosition]} z-40`}>
       <Button
-        onClick={onClick}
-        className="gradient-primary text-white shadow-custom-lg hover-lift relative"
+        onClick={handleClick}
+        className="gradient-primary text-white shadow-custom-lg hover-lift relative sticky-cart-button"
         size="lg"
+        data-cart-source="react"
         style={{
           backgroundColor: themeColor,
           borderColor: themeColor
@@ -90,11 +127,11 @@ export const StickyCartButton = ({
           <span className="font-medium">{actualText}</span>
         </div>
         
-        {itemCount > 0 && (
+        {currentItemCount > 0 && (
           <Badge 
             className="absolute -top-2 -right-2 bg-accent text-accent-foreground border-2 border-background min-w-[1.5rem] h-6 rounded-full flex items-center justify-center text-xs font-bold"
           >
-            {itemCount > 99 ? "99+" : itemCount}
+            {currentItemCount > 99 ? "99+" : currentItemCount}
           </Badge>
         )}
       </Button>

@@ -35,10 +35,10 @@ class StickyCartDrawer {
       return;
     }
     
-    // Initialize components
-    this.createStickyButton();
+    // Initialize components (sticky button handled by React component)
     this.createCartDrawer();
     this.bindEvents();
+    this.exposeGlobalMethods();
     
     // Load initial cart data
     await this.loadCartData();
@@ -258,56 +258,14 @@ class StickyCartDrawer {
     return sessionId;
   }
 
-  createStickyButton() {
-    if (!this.settings?.stickyButton?.enabled) return;
-
-    const button = document.createElement('button');
-    button.className = 'sticky-cart-button';
-    button.style.cssText = `
-      position: fixed;
-      z-index: 9999;
-      padding: 12px 16px;
-      background: ${this.settings.themeColor || '#000000'};
-      color: white;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      font-family: inherit;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      transition: all 0.3s ease;
-    `;
-
-    // Position the button
-    const position = this.settings.stickyButton.position || 'bottom-right';
-    const positions = {
-      'bottom-right': { bottom: '20px', right: '20px' },
-      'bottom-left': { bottom: '20px', left: '20px' },
-      'top-right': { top: '20px', right: '20px' },
-      'top-left': { top: '20px', left: '20px' }
+  // Sticky button now handled by React component - expose drawer methods globally
+  exposeGlobalMethods() {
+    window.stickyCartDrawer = {
+      openDrawer: () => this.openDrawer(),
+      closeDrawer: () => this.closeDrawer(),
+      toggleDrawer: () => this.toggleDrawer(),
+      updateItemCount: (count) => this.updateItemCount(count)
     };
-    
-    Object.assign(button.style, positions[position] || positions['bottom-right']);
-
-    button.innerHTML = `
-      <span class="cart-icon">🛒</span>
-      <span class="cart-text">${this.settings.stickyButton.text}</span>
-      <span class="cart-count" style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 10px; font-size: 12px; display: none;">0</span>
-    `;
-    
-    button.addEventListener('click', () => this.toggleDrawer());
-    button.addEventListener('mouseenter', () => {
-      button.style.transform = 'scale(1.05)';
-    });
-    button.addEventListener('mouseleave', () => {
-      button.style.transform = 'scale(1)';
-    });
-    
-    document.body.appendChild(button);
-    this.stickyButton = button;
   }
 
   createCartDrawer() {
@@ -508,8 +466,13 @@ class StickyCartDrawer {
 
     // Capture clicks early to stop theme default cart/drawer from opening
     document.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      const cartTrigger = target.closest('a[href="/cart"], a[href*="/cart"], [data-open-cart], .js-drawer-open-cart, #cart-icon-bubble, [data-drawer-target*="cart"], button[aria-controls*="Cart"], button[name="cart"]');
+      const target = e.target;
+      // Skip if it's our React sticky button
+      if (target.closest('.sticky-cart-button') || target.closest('[data-cart-source="react"]')) {
+        return;
+      }
+      
+      const cartTrigger = target.closest('a[href="/cart"], a[href*="/cart"], [data-open-cart], .js-drawer-open-cart, #cart-icon-bubble, [data-drawer-target*="cart"], button[aria-controls*="Cart"], button[name="cart"], .cart-icon-wrapper, [data-cart-count]');
       if (cartTrigger) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -565,18 +528,10 @@ class StickyCartDrawer {
   updateUI() {
     if (!this.cartData) return;
 
-    // Update sticky button
-    if (this.stickyButton) {
-      const countEl = this.stickyButton.querySelector('.cart-count');
-      const textEl = this.stickyButton.querySelector('.cart-text');
-      
-      countEl.textContent = this.cartData.item_count || 0;
-      countEl.style.display = (this.cartData.item_count || 0) > 0 ? 'block' : 'none';
-      
-      if (textEl && this.settings?.stickyButton?.text) {
-        textEl.textContent = this.settings.stickyButton.text;
-      }
-    }
+    // Notify React component about item count update
+    window.dispatchEvent(new CustomEvent('cart:itemCountUpdated', { 
+      detail: { count: this.cartData.item_count || 0 }
+    }));
 
     // Update drawer content
     if (this.drawer) {
@@ -585,6 +540,13 @@ class StickyCartDrawer {
       this.updateFreeShippingProgress();
       this.updateUpsells();
       this.updateAddOns();
+    }
+  }
+
+  updateItemCount(count) {
+    // Method for React component to update count
+    if (this.cartData) {
+      this.cartData.item_count = count;
     }
   }
 
@@ -887,7 +849,8 @@ class StickyCartDrawer {
         checkbox.checked = !isChecked;
       }
     }
-
+  }
+    
   async updateQuantity(key, change) {
     const item = this.cartData?.items?.find(item => item.key === key);
     if (!item) return;
