@@ -352,7 +352,7 @@ class StickyCartDrawer {
         .cart-drawer.open{pointer-events:auto;}
         .cart-drawer-overlay{opacity:0;visibility:hidden;transition:all .3s ease;}
         .cart-drawer.open .cart-drawer-overlay{opacity:1;visibility:visible;}
-        .cart-drawer-panel{position:fixed;top:0;right:0;width:380px;max-width:90vw;height:100%;background:#fff;transform:translateX(100%);transition:transform .3s ease;box-shadow:-4px 0 16px rgba(0,0,0,.15);display:flex;flex-direction:column;z-index:1;}
+        .cart-drawer-panel{position:fixed;top:0;right:0;width:450px;height:100%;background:#fff;transform:translateX(100%);transition:transform .3s ease;box-shadow:-4px 0 16px rgba(0,0,0,.15);display:flex;flex-direction:column;z-index:1;}
         .cart-drawer.open .cart-drawer-panel{transform:translateX(0);}
         /* Hide/disable common theme carts when our drawer is open */
         body[data-sticky-cart-open] #CartDrawer,
@@ -379,31 +379,62 @@ class StickyCartDrawer {
     `;
 
     drawer.innerHTML = `
-      <div class="cart-drawer-overlay"></div>
-      <aside class="cart-drawer-content">
-        <div class="cart-drawer-header">
-          <h2>Shopping Cart (${this.cartData?.item_count || 0})</h2>
-          <button class="cart-drawer-close">✕</button>
+      <div class="cart-drawer-overlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.5);
+        z-index: 0;
+      "></div>
+      <aside class="cart-drawer-panel">
+        <div class="cart-drawer-header" style="
+          padding: 20px;
+          border-bottom: 1px solid #eee;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        ">
+          <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Shopping Cart (2)</h2>
+          <button class="cart-drawer-close" style="
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">×</button>
         </div>
-
-        <div class="cart-drawer-body">
-          ${this.settings?.freeShipping?.enabled ? this.createFreeShippingBar() : ''}
+        <div class="cart-drawer-body" style="flex: 1; overflow-y: auto; padding: 20px;">
           <div class="cart-items"></div>
+          ${this.settings?.freeShipping?.enabled ? this.createFreeShippingBar() : ''}
           ${this.settings?.upsells?.enabled ? this.createUpsellsSection() : ''}
           ${this.settings?.addOns?.enabled ? this.createAddOnsSection() : ''}
           ${this.settings?.discountBar?.enabled ? this.createDiscountBar() : ''}
-          ${this.settings?.announcementText ? this.createAnnouncementBar() : ''}
         </div>
-
-        <div class="cart-drawer-footer">
-          <div class="cart-total">
-            <span class="label">Total:</span>
-            <span class="value">${this.formatCurrency(this.cartData?.total_price / 100 || 0)}</span>
-          </div>
-          <div class="space-y-2">
-            <button class="checkout-button">Proceed to Checkout</button>
-            <button class="continue-shopping-button">Continue Shopping</button>
-          </div>
+        <div class="cart-drawer-footer" style="
+          padding: 20px;
+          border-top: 1px solid #eee;
+          background: white;
+        ">
+          <div class="cart-total" style="margin-bottom: 15px;"></div>
+          <button class="checkout-button" style="
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+          ">Checkout</button>
         </div>
       </aside>
     `;
@@ -419,37 +450,39 @@ class StickyCartDrawer {
 
   createFreeShippingBar() {
     const threshold = this.settings?.freeShipping?.threshold || 50;
-    const currentTotal = this.cartData?.total_price / 100 || 0;
-    const remaining = Math.max(0, threshold - currentTotal);
-    const progress = Math.min(100, (currentTotal / threshold) * 100);
-
     return `
-      <div class="free-shipping-bar">
-        <div class="shipping-text">
-          <span class="font-medium">Free shipping progress</span>
-          ${remaining > 0 ? `
-            <span class="text-muted-foreground">${this.formatCurrency(remaining)} remaining</span>
-          ` : `
-            <span class="badge bg-success text-success-foreground">Free shipping unlocked! 🎉</span>
-          `}
+      <div class="free-shipping-bar" style="
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+      ">
+        <div class="shipping-progress" style="
+          width: 100%;
+          height: 6px;
+          background: #e9ecef;
+          border-radius: 3px;
+          margin-bottom: 8px;
+          overflow: hidden;
+        ">
+          <div class="shipping-progress-bar" style="
+            height: 100%;
+            background: ${this.settings?.themeColor || '#000000'};
+            width: 0%;
+            transition: width 0.3s ease;
+          "></div>
         </div>
-        <div class="shipping-progress">
-          <div class="shipping-progress-bar" style="width: ${progress}%;"></div>
+        <div class="shipping-text" style="font-size: 14px; text-align: center;">
+          Add ${this.formatCurrency(threshold)} for free shipping!
         </div>
-        <p class="text-xs text-muted-foreground">
-          ${remaining > 0 
-            ? `Add ${this.formatCurrency(remaining)} more for free shipping!`
-            : "You've qualified for free shipping!"
-          }
-        </p>
       </div>
     `;
   }
 
   createUpsellsSection() {
     return `
-      <div class="upsells-section">
-        <h3>Frequently bought together</h3>
+      <div class="upsells-section" style="margin-bottom: 20px;">
+        <h3 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Frequently Bought Together</h3>
         <div class="upsells-grid"></div>
       </div>
     `;
@@ -457,8 +490,8 @@ class StickyCartDrawer {
 
   createAddOnsSection() {
     return `
-      <div class="addons-section">
-        <h3>Protect your purchase</h3>
+      <div class="addons-section" style="margin-bottom: 20px;">
+        <h3 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Add Protection</h3>
         <div class="addons-list"></div>
       </div>
     `;
@@ -466,20 +499,30 @@ class StickyCartDrawer {
 
   createDiscountBar() {
     return `
-      <div class="discount-bar">
-        <span class="font-medium text-sm">Have a discount code?</span>
-        ${this.settings?.discountCode ? `<span class="badge badge-secondary">${this.settings.discountCode}</span>` : ''}
-        <button class="discount-apply">Apply Discount Code</button>
-      </div>
-    `;
-  }
-
-  createAnnouncementBar() {
-    return `
-      <div class="announcement-bar">
-        <p class="text-sm text-accent-foreground">
-          ${this.settings.announcementText}
-        </p>
+      <div class="discount-bar" style="
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        display: flex;
+        gap: 10px;
+      ">
+        <input type="text" class="discount-input" placeholder="Discount code" style="
+          flex: 1;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 14px;
+        ">
+        <button class="discount-apply" style="
+          padding: 10px 15px;
+          background: ${this.settings?.themeColor || '#000000'};
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+        ">Apply</button>
       </div>
     `;
   }
@@ -622,16 +665,16 @@ class StickyCartDrawer {
       ">
         <div class="item-image" style="flex-shrink: 0;">
           <img src="${item.featured_image?.url || ''}" alt="${item.title}" style="
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
             object-fit: cover;
             border-radius: 6px;
           ">
         </div>
         <div class="item-details" style="flex: 1; min-width: 0;">
-          <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 500; line-height: 1.3;">${item.title}</h4>
+          <h4 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 600; line-height: 1.3;">${item.title}</h4>
           ${item.variant_title ? `<div style="font-size: 12px; color: #666; margin-bottom: 4px;">${item.variant_title}</div>` : ''}
-          <div style="font-size: 14px; font-weight: 600;">${this.formatCurrency(item.price / 100)}</div>
+          <div style="font-size: 16px; font-weight: 600;">${this.formatCurrency(item.price / 100)}</div>
         </div>
         <div class="item-controls" style="flex-shrink: 0; display: flex; flex-direction: column; align-items: end; gap: 8px;">
           <div class="quantity-controls" style="display: flex; align-items: center; gap: 8px;">
@@ -815,7 +858,7 @@ class StickyCartDrawer {
               cursor: pointer;
             ">${addon.product_title}</label>
             ${addon.description ? `<div style="font-size: 11px; color: #666; margin-bottom: 4px;">${addon.description}</div>` : ''}
-            <div style="font-size: 12px; font-weight: 600; color: ${this.settings.themeColor || '#000000'};">
+            <div style="font-size: 13px; font-weight: 500; color: ${this.settings.themeColor || '#000000'};">
               ${this.formatCurrency(addon.product_price)}
             </div>
           </div>
