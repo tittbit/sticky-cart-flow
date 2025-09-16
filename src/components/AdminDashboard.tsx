@@ -1,12 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ConfigurationPanel } from "./admin/ConfigurationPanel";
 import { AnalyticsDashboard } from "./admin/AnalyticsDashboard";
 import { BillingPanel } from "./admin/BillingPanel";
+import { supabase } from "@/integrations/supabase/client";
 
 export const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState("config");
+  const [quickStats, setQuickStats] = useState({
+    cartOpens: 0,
+    conversions: 0,
+    aovIncrease: 0
+  });
+
+  useEffect(() => {
+    loadQuickStats();
+    // Refresh stats every 30 seconds
+    const interval = setInterval(loadQuickStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadQuickStats = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('analytics', {
+        method: 'GET'
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        setQuickStats({
+          cartOpens: data.metrics.cartOpens || 0,
+          conversions: data.metrics.conversions || 0,
+          aovIncrease: data.metrics.avgOrderValue > 0 ? 
+            Math.round(((data.metrics.avgOrderValue - 50) / 50) * 100) : 0 // Assuming baseline AOV of $50
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load quick stats:', error);
+    }
+  };
 
   const navigationItems = [
     { id: "config", label: "Configuration", icon: "⚙️", badge: null },
@@ -59,15 +93,17 @@ export const AdminDashboard = () => {
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Cart Opens</span>
-              <span className="font-semibold">1,247</span>
+              <span className="font-semibold">{quickStats.cartOpens.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Conversions</span>
-              <span className="font-semibold text-success">342</span>
+              <span className="font-semibold text-success">{quickStats.conversions.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">AOV Increase</span>
-              <span className="font-semibold text-success">+23%</span>
+              <span className={`font-semibold ${quickStats.aovIncrease > 0 ? 'text-success' : 'text-muted-foreground'}`}>
+                {quickStats.aovIncrease > 0 ? '+' : ''}{quickStats.aovIncrease}%
+              </span>
             </div>
           </CardContent>
         </Card>

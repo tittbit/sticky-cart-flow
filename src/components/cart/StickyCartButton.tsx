@@ -1,19 +1,72 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StickyCartButtonProps {
   itemCount: number;
   onClick: () => void;
   position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   text?: string;
+  shopDomain?: string;
+  enabled?: boolean;
 }
 
 export const StickyCartButton = ({ 
   itemCount, 
   onClick, 
   position = "bottom-right",
-  text = "Cart"
+  text = "Cart",
+  shopDomain,
+  enabled = true
 }: StickyCartButtonProps) => {
+  const [settings, setSettings] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadConfiguration();
+  }, [shopDomain]);
+
+  const loadConfiguration = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('shop-config', {
+        method: 'GET',
+        headers: shopDomain ? { 'x-shop-domain': shopDomain } : {}
+      });
+
+      if (error) throw error;
+      
+      if (data?.success) {
+        setSettings(data.settings);
+      } else {
+        setSettings({
+          stickyButtonEnabled: true,
+          stickyButtonText: 'Cart',
+          stickyButtonPosition: 'bottom-right',
+          themeColor: '#000000'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load configuration:', error);
+      setSettings({
+        stickyButtonEnabled: true,
+        stickyButtonText: 'Cart',
+        stickyButtonPosition: 'bottom-right'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Don't render if disabled or loading
+  if (!enabled || loading || !settings?.stickyButtonEnabled) {
+    return null;
+  }
+
+  const actualPosition = settings?.stickyButtonPosition || position;
+  const actualText = settings?.stickyButtonText || text;
+  const themeColor = settings?.themeColor || '#000000';
   const positionClasses = {
     "bottom-right": "bottom-6 right-6",
     "bottom-left": "bottom-6 left-6", 
@@ -22,15 +75,19 @@ export const StickyCartButton = ({
   };
 
   return (
-    <div className={`fixed ${positionClasses[position]} z-40`}>
+    <div className={`fixed ${positionClasses[actualPosition]} z-40`}>
       <Button
         onClick={onClick}
         className="gradient-primary text-white shadow-custom-lg hover-lift relative"
         size="lg"
+        style={{
+          backgroundColor: themeColor,
+          borderColor: themeColor
+        }}
       >
         <div className="flex items-center space-x-2">
           <span>🛒</span>
-          <span className="font-medium">{text}</span>
+          <span className="font-medium">{actualText}</span>
         </div>
         
         {itemCount > 0 && (

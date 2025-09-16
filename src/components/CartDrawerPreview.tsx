@@ -1,12 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CartDrawer } from "./cart/CartDrawer";
 import { StickyCartButton } from "./cart/StickyCartButton";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export const CartDrawerPreview = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [settings, setSettings] = useState<any>(null);
+  const [integrationStatus, setIntegrationStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
   const [cartItems] = useState([
     {
       id: 1,
@@ -29,8 +37,102 @@ export const CartDrawerPreview = () => {
   const cartTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  useEffect(() => {
+    loadConfiguration();
+    loadIntegrationStatus();
+    
+    // Listen for configuration changes
+    const interval = setInterval(() => {
+      loadConfiguration();
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadConfiguration = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('shop-config', {
+        method: 'GET'
+      });
+
+      if (error) throw error;
+      
+      if (data?.success) {
+        setSettings(data.settings);
+      }
+    } catch (error) {
+      console.error('Failed to load configuration:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadIntegrationStatus = async () => {
+    // Mock integration status - in production this would check actual integrations
+    setIntegrationStatus({
+      themeIntegration: {
+        status: 'active',
+        description: 'Cart drawer script injected successfully'
+      },
+      metafields: {
+        status: 'synced',
+        description: 'Settings synced to database'
+      },
+      analytics: {
+        status: settings?.facebookPixelId || settings?.googleAnalyticsId ? 'connected' : 'pending',
+        description: settings?.facebookPixelId || settings?.googleAnalyticsId 
+          ? 'Analytics tracking configured'
+          : 'Analytics integration needs configuration'
+      }
+    });
+  };
+
+  const testAnalytics = async () => {
+    try {
+      // Send test analytics event
+      const { error } = await supabase.functions.invoke('analytics', {
+        method: 'POST',
+        body: {
+          eventType: 'cart_test',
+          sessionId: 'preview-session',
+          cartTotal: cartTotal,
+          itemCount: itemCount,
+          eventData: {
+            test: true,
+            source: 'preview'
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Analytics Test Successful",
+        description: "Test event sent to analytics system"
+      });
+    } catch (error) {
+      console.error('Analytics test failed:', error);
+      toast({
+        title: "Analytics Test Failed", 
+        description: "Could not send test event",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const toggleMobileView = () => {
+    setIsMobileView(!isMobileView);
+    toast({
+      title: isMobileView ? "Desktop View" : "Mobile View",
+      description: `Switched to ${isMobileView ? 'desktop' : 'mobile'} preview mode`
+    });
+  };
+
+  // Get currency from settings or default to USD
+  const currency = settings?.currency || 'USD';
+
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 transition-all duration-300 ${isMobileView ? 'max-w-sm mx-auto' : ''}`}>
       {/* Preview Controls */}
       <Card className="card-gradient">
         <CardHeader>
@@ -47,10 +149,16 @@ export const CartDrawerPreview = () => {
             >
               Open Cart Drawer
             </Button>
-            <Button variant="outline">
-              Preview Mobile View
+            <Button 
+              variant="outline"
+              onClick={toggleMobileView}
+            >
+              {isMobileView ? '🖥️ Desktop View' : '📱 Mobile View'}
             </Button>
-            <Button variant="outline">
+            <Button 
+              variant="outline"
+              onClick={testAnalytics}
+            >
               Test Analytics Events
             </Button>
           </div>
@@ -58,9 +166,19 @@ export const CartDrawerPreview = () => {
           <div className="flex items-center space-x-4 text-sm text-muted-foreground">
             <span>Cart Items: {itemCount}</span>
             <span>•</span>
-            <span>Total: ${cartTotal.toFixed(2)}</span>
+            <span>Total: {currency} {cartTotal.toFixed(2)}</span>
             <span>•</span>
-            <Badge variant="secondary">Preview Mode</Badge>
+            <Badge variant="secondary">
+              {isMobileView ? 'Mobile Preview' : 'Desktop Preview'}
+            </Badge>
+            {settings && (
+              <>
+                <span>•</span>
+                <Badge variant={settings.cartDrawerEnabled ? "default" : "destructive"}>
+                  {settings.cartDrawerEnabled ? 'Enabled' : 'Disabled'}
+                </Badge>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -73,8 +191,11 @@ export const CartDrawerPreview = () => {
               <span className="text-2xl">🛒</span>
               <div>
                 <CardTitle className="text-base">Modern Cart Drawer</CardTitle>
-                <Badge variant="default" className="mt-1 text-xs bg-success text-success-foreground">
-                  Active
+                <Badge 
+                  variant={settings?.cartDrawerEnabled ? "default" : "secondary"} 
+                  className={`mt-1 text-xs ${settings?.cartDrawerEnabled ? 'bg-success text-success-foreground' : ''}`}
+                >
+                  {settings?.cartDrawerEnabled ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
             </div>
@@ -92,8 +213,11 @@ export const CartDrawerPreview = () => {
               <span className="text-2xl">💰</span>
               <div>
                 <CardTitle className="text-base">Product Upsells</CardTitle>
-                <Badge variant="default" className="mt-1 text-xs bg-success text-success-foreground">
-                  Active
+                <Badge 
+                  variant={settings?.upsellsEnabled ? "default" : "secondary"} 
+                  className={`mt-1 text-xs ${settings?.upsellsEnabled ? 'bg-success text-success-foreground' : ''}`}
+                >
+                  {settings?.upsellsEnabled ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
             </div>
@@ -111,8 +235,11 @@ export const CartDrawerPreview = () => {
               <span className="text-2xl">🚚</span>
               <div>
                 <CardTitle className="text-base">Free Shipping Bar</CardTitle>
-                <Badge variant="default" className="mt-1 text-xs bg-success text-success-foreground">
-                  Active
+                <Badge 
+                  variant={settings?.freeShippingEnabled ? "default" : "secondary"} 
+                  className={`mt-1 text-xs ${settings?.freeShippingEnabled ? 'bg-success text-success-foreground' : ''}`}
+                >
+                  {settings?.freeShippingEnabled ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
             </div>
@@ -135,40 +262,49 @@ export const CartDrawerPreview = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 rounded-lg border">
               <div className="flex items-center space-x-3">
-                <div className="status-dot status-success"></div>
+                <div className={`status-dot ${integrationStatus?.themeIntegration?.status === 'active' ? 'status-success' : 'status-warning'}`}></div>
                 <div>
                   <div className="font-medium">Theme Integration</div>
-                  <div className="text-sm text-muted-foreground">Script tag injected successfully</div>
+                  <div className="text-sm text-muted-foreground">
+                    {integrationStatus?.themeIntegration?.description || 'Loading...'}
+                  </div>
                 </div>
               </div>
-              <Badge variant="default" className="bg-success text-success-foreground">
-                Active
+              <Badge variant={integrationStatus?.themeIntegration?.status === 'active' ? "default" : "secondary"} 
+                     className={integrationStatus?.themeIntegration?.status === 'active' ? "bg-success text-success-foreground" : ""}>
+                {integrationStatus?.themeIntegration?.status === 'active' ? 'Active' : 'Pending'}
               </Badge>
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-lg border">
               <div className="flex items-center space-x-3">
-                <div className="status-dot status-success"></div>
+                <div className={`status-dot ${integrationStatus?.metafields?.status === 'synced' ? 'status-success' : 'status-warning'}`}></div>
                 <div>
-                  <div className="font-medium">Metafield Configuration</div>
-                  <div className="text-sm text-muted-foreground">Settings saved to shop metafields</div>
+                  <div className="font-medium">Database Configuration</div>
+                  <div className="text-sm text-muted-foreground">
+                    {integrationStatus?.metafields?.description || 'Loading...'}
+                  </div>
                 </div>
               </div>
-              <Badge variant="default" className="bg-success text-success-foreground">
-                Synced
+              <Badge variant={integrationStatus?.metafields?.status === 'synced' ? "default" : "secondary"}
+                     className={integrationStatus?.metafields?.status === 'synced' ? "bg-success text-success-foreground" : ""}>
+                {integrationStatus?.metafields?.status === 'synced' ? 'Synced' : 'Pending'}
               </Badge>
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-lg border">
               <div className="flex items-center space-x-3">
-                <div className="status-dot status-warning"></div>
+                <div className={`status-dot ${integrationStatus?.analytics?.status === 'connected' ? 'status-success' : 'status-warning'}`}></div>
                 <div>
                   <div className="font-medium">Analytics Tracking</div>
-                  <div className="text-sm text-muted-foreground">Facebook Pixel needs configuration</div>
+                  <div className="text-sm text-muted-foreground">
+                    {integrationStatus?.analytics?.description || 'Loading...'}
+                  </div>
                 </div>
               </div>
-              <Badge variant="secondary">
-                Pending
+              <Badge variant={integrationStatus?.analytics?.status === 'connected' ? "default" : "secondary"}
+                     className={integrationStatus?.analytics?.status === 'connected' ? "bg-success text-success-foreground" : ""}>
+                {integrationStatus?.analytics?.status === 'connected' ? 'Connected' : 'Pending'}
               </Badge>
             </div>
           </div>
@@ -181,12 +317,18 @@ export const CartDrawerPreview = () => {
         onClose={() => setIsDrawerOpen(false)}
         items={cartItems}
         total={cartTotal}
+        position={settings?.drawerPosition}
+        themeColor={settings?.themeColor}
+        currency={currency}
       />
 
       {/* Sticky Cart Button */}
       <StickyCartButton 
         itemCount={itemCount}
         onClick={() => setIsDrawerOpen(true)}
+        enabled={settings?.stickyButtonEnabled}
+        position={settings?.stickyButtonPosition}
+        text={settings?.stickyButtonText}
       />
     </div>
   );
