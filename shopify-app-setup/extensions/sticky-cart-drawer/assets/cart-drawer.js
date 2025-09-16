@@ -125,7 +125,8 @@ class StickyCartDrawer {
         headers: {
           'Content-Type': 'application/json',
           'x-shop-domain': this.shopDomain,
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZnp4bXBzY25kem51YWVveGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDY2NzQsImV4cCI6MjA3MzI4MjY3NH0.xB_mlFv8uai35Vpil4yVsu1QqXyaa4IY9rHiYzbftAg'
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZnp4bXBzY25kem51YWVveGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDY2NzQsImV4cCI6MjA3MzI4MjY3NH0.xB_mlFv8uai35Vpil4yVsu1QqXyaa4IY9rHiYzbftAg',
+          'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZnp4bXBzY25kem51YWVveGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDY2NzQsImV4cCI6MjA3MzI4MjY3NH0.xB_mlFv8uai35Vpil4yVsu1QqXyaa4IY9rHiYzbftAg'
         }
       });
 
@@ -169,11 +170,11 @@ class StickyCartDrawer {
       enabled: raw.cartDrawerEnabled !== false,
       stickyButton: {
         enabled: raw.stickyButtonEnabled !== false,
-        text: raw.stickyButtonText || 'Cart',
-        position: raw.stickyButtonPosition || 'bottom-right'
+        text: raw.stickyButtonText || raw.buttonText || 'Cart',
+        position: raw.stickyButtonPosition || raw.buttonPosition || 'bottom-right'
       },
       freeShipping: {
-        enabled: raw.freeShippingEnabled === true,
+        enabled: raw.freeShippingEnabled === true || raw.freeShippingBarEnabled === true,
         threshold: raw.freeShippingThreshold || 50
       },
       upsells: {
@@ -183,7 +184,7 @@ class StickyCartDrawer {
         enabled: raw.addOnsEnabled === true
       },
       discountBar: {
-        enabled: raw.discountBarEnabled === true
+        enabled: raw.discountBarEnabled === true || raw.discountPromoEnabled === true
       },
       themeColor: raw.themeColor || '#000000',
       announcementText: raw.announcementText || '',
@@ -306,6 +307,22 @@ class StickyCartDrawer {
   }
 
   createCartDrawer() {
+    // Inject minimal styles once for open/close transitions
+    const styleId = 'scd-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        .cart-drawer{pointer-events:none;}
+        .cart-drawer.open{pointer-events:auto;}
+        .cart-drawer-overlay{opacity:0;visibility:hidden;transition:all .3s ease;}
+        .cart-drawer.open .cart-drawer-overlay{opacity:1;visibility:visible;}
+        .cart-drawer-panel{position:fixed;top:0;right:0;width:380px;max-width:90vw;height:100%;background:#fff;transform:translateX(100%);transition:transform .3s ease;box-shadow:-4px 0 16px rgba(0,0,0,.15);display:flex;flex-direction:column;z-index:1;}
+        .cart-drawer.open .cart-drawer-panel{transform:translateX(0);}
+      `;
+      document.head.appendChild(style);
+    }
+
     const drawer = document.createElement('div');
     drawer.className = 'cart-drawer';
     drawer.style.cssText = `
@@ -315,8 +332,6 @@ class StickyCartDrawer {
       width: 100%;
       height: 100%;
       z-index: 10000;
-      pointer-events: none;
-      transition: all 0.3s ease;
     `;
 
     drawer.innerHTML = `
@@ -327,12 +342,9 @@ class StickyCartDrawer {
         width: 100vw;
         height: 100vh;
         background: rgba(0,0,0,0.5);
-        z-index: -1;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
+        z-index: 0;
       "></div>
-      <div class="cart-drawer-content" style="flex: 1; display: flex; flex-direction: column;">
+      <aside class="cart-drawer-panel">
         <div class="cart-drawer-header" style="
           padding: 20px;
           border-bottom: 1px solid #eee;
@@ -380,7 +392,7 @@ class StickyCartDrawer {
             transition: opacity 0.3s ease;
           ">Checkout</button>
         </div>
-      </div>
+      </aside>
     `;
 
     document.body.appendChild(drawer);
@@ -389,7 +401,7 @@ class StickyCartDrawer {
     // Bind events
     drawer.querySelector('.cart-drawer-close').addEventListener('click', () => this.closeDrawer());
     drawer.querySelector('.cart-drawer-overlay').addEventListener('click', () => this.closeDrawer());
-    drawer.querySelector('.checkout-button').addEventListener('click', () => this.goToCheckout());
+    drawer.querySelector('.checkout-button').addEventListener('click', (e) => { e.preventDefault(); this.goToCheckout(); });
   }
 
   createFreeShippingBar() {
@@ -472,17 +484,30 @@ class StickyCartDrawer {
   }
 
   bindEvents() {
-    // Intercept form submissions
+    // Intercept form submissions (Add to cart)
     document.addEventListener('submit', (e) => {
       if (e.target?.action?.includes('/cart/add')) {
         e.preventDefault();
+        e.stopPropagation();
         this.handleAddToCart(e.target);
       }
     });
 
-    // Intercept add to cart clicks and cart open links
+    // Capture clicks early to stop theme default cart/drawer from opening
     document.addEventListener('click', (e) => {
-      const addBtn = e.target.closest('[name="add"], .btn-add-to-cart, [data-add-to-cart], .add-to-cart, .product-form__cart-submit');
+      const target = e.target as HTMLElement;
+      const cartTrigger = target.closest('a[href="/cart"], a[href*="/cart"], [data-open-cart], .js-drawer-open-cart, #cart-icon-bubble, [data-drawer-target*="cart"], button[aria-controls*="Cart"], button[name="cart"]');
+      if (cartTrigger) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        this.openDrawer();
+      }
+    }, true);
+
+    // Bubble phase: intercept add-to-cart buttons
+    document.addEventListener('click', (e) => {
+      const addBtn = (e.target as HTMLElement).closest('[name="add"], .btn-add-to-cart, [data-add-to-cart], .add-to-cart, .product-form__cart-submit');
       if (addBtn) {
         const form = addBtn.closest('form');
         if (form?.action?.includes('/cart/add')) {
@@ -491,10 +516,13 @@ class StickyCartDrawer {
           return;
         }
       }
-      const cartLink = e.target.closest('a[href="/cart"], a[href^="#cart"], [data-open-cart], button[name="cart"], .js-drawer-open-cart');
-      if (cartLink) {
-        e.preventDefault();
-        this.openDrawer();
+    });
+
+    // Refresh settings/cart when returning to the tab
+    document.addEventListener('visibilitychange', async () => {
+      if (!document.hidden) {
+        await this.loadSettings();
+        await this.loadCartData();
       }
     });
   }
@@ -618,19 +646,20 @@ class StickyCartDrawer {
       </div>
     `).join('');
 
-    // Bind quantity events
-    container.addEventListener('click', (e) => {
-      const key = e.target.dataset.key;
+    // Bind quantity events (delegate once)
+    container.onclick = (e) => {
+      const target = e.target;
+      const key = target?.dataset?.key;
       if (!key) return;
 
-      if (e.target.classList.contains('qty-increase')) {
+      if (target.classList.contains('qty-increase')) {
         this.updateQuantity(key, 1);
-      } else if (e.target.classList.contains('qty-decrease')) {
+      } else if (target.classList.contains('qty-decrease')) {
         this.updateQuantity(key, -1);
-      } else if (e.target.classList.contains('item-remove')) {
+      } else if (target.classList.contains('item-remove')) {
         this.removeItem(key);
       }
-    });
+    };
   }
 
   updateCartTotal() {
@@ -712,10 +741,10 @@ class StickyCartDrawer {
     const newQuantity = Math.max(0, item.quantity + change);
     
     try {
-      const response = await fetch('/cart/update.js', {
+      const response = await fetch('/cart/change.js', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates: { [key]: newQuantity } })
+        body: JSON.stringify({ id: key, quantity: newQuantity })
       });
       
       if (response.ok) {
@@ -746,6 +775,7 @@ class StickyCartDrawer {
     this.drawer.classList.add('open');
     this.isOpen = true;
     document.body.style.overflow = 'hidden';
+    document.body.setAttribute('data-sticky-cart-open', 'true');
     
     this.trackEvent('cart_open');
   }
@@ -756,6 +786,7 @@ class StickyCartDrawer {
     this.drawer.classList.remove('open');
     this.isOpen = false;
     document.body.style.overflow = '';
+    document.body.removeAttribute('data-sticky-cart-open');
   }
 
   goToCheckout() {
