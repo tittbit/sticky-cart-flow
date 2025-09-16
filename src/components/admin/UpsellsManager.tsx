@@ -61,8 +61,14 @@ export const UpsellsManager = () => {
   };
 
   const addUpsellProduct = () => {
+    const newProductId = ''; // Default empty product_id
+    if (upsellProducts.some(p => p.product_id === newProductId)) {
+      toast({ title: 'Duplicate Product', description: 'An upsell product with the same ID already exists.', variant: 'destructive' });
+      return;
+    }
+
     setUpsellProducts(prev => [...prev, {
-      product_id: '',
+      product_id: newProductId,
       product_title: '',
       product_handle: '',
       product_price: 0,
@@ -129,7 +135,7 @@ export const UpsellsManager = () => {
       const shop = getShopDomain();
 
       const validProducts = upsellProducts.filter(p => 
-        p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
+        p.product_id.trim() && p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
       );
 
       const { data } = await supabase.functions.invoke('upsells', {
