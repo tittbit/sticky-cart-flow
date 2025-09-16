@@ -369,3 +369,56 @@
   transform: translateY(-1px);
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
+
+/* General Font Styles */
+.cart-drawer-header h2,
+.cart-items h3,
+.cart-item h4,
+.cart-total span,
+.shipping-text,
+.discount-input,
+.discount-apply,
+.checkout-button {
+  font-family: 'Inter', sans-serif; /* Replace with your project's font */
+  color: #1e293b; /* Replace with your project's text color */
+}
+
+/* Refine Spacing and Padding */
+.cart-drawer-header {
+  padding: 1.25rem; /* Equivalent to 20px */
+}
+
+.cart-drawer-body {
+  padding: 1.25rem; /* Equivalent to 20px */
+}
+
+.cart-item {
+  padding: 0.75rem 0; /* Equivalent to 12px top/bottom */
+}
+
+/* Button Styles */
+.checkout-button,
+.discount-apply {
+  padding: 0.75rem 1.25rem; /* Equivalent to 12px top/bottom, 20px left/right */
+  font-size: 0.875rem; /* Equivalent to 14px */
+  border-radius: 0.5rem; /* Equivalent to 8px */
+}
+
+/* Free Shipping Bar */
+.free-shipping-bar {
+  padding: 0.75rem; /* Equivalent to 12px */
+  border-radius: 0.75rem; /* Equivalent to 12px */
+}
+
+/* Cart Item Styles */
+.item-details h4 {
+  font-size: 0.875rem; /* Equivalent to 14px */
+}
+
+.item-variant {
+  font-size: 0.75rem; /* Equivalent to 12px */
+}
+
+.item-price {
+  font-size: 0.875rem; /* Equivalent to 14px */
+}
