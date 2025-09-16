@@ -138,6 +138,7 @@ export const UpsellsManager = () => {
         p.product_id.trim() && p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
       );
 
+      console.log('Saving upsell products:', validProducts);
       const { data } = await supabase.functions.invoke('upsells', {
         method: 'POST',
         headers: { 'x-shop-domain': shop },
