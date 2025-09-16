@@ -145,7 +145,10 @@ export const AddOnsManager = () => {
       console.log('Saving add-on products:', validProducts);
       const { data } = await supabase.functions.invoke('addons', {
         method: 'POST',
-        headers: { 'x-shop-domain': shop },
+        headers: { 
+          'x-shop-domain': shop,
+          'x-shopify-api-key': process.env.SHOPIFY_API_KEY || ''
+        },
         body: { products: validProducts }
       });
 
