@@ -5,7 +5,7 @@
 
 class ShopifyCartIntegration {
   constructor() {
-    this.shopDomain = window.Shopify?.shop || window.location.hostname;
+    this.shopDomain = window.Shopify?.shop || 'demo-shop.myshopify.com';
     this.settings = null;
     this.init();
   }

@@ -35,7 +35,7 @@ class StickyCartDrawer {
         return;
       }
 
-      const shopDomain = window.SHOP_DOMAIN || window.location.hostname;
+      const shopDomain = window.Shopify?.shop || 'demo-shop.myshopify.com';
 
       // Load settings directly from Supabase Edge Function
       const res = await fetch('https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/shop-config', {
