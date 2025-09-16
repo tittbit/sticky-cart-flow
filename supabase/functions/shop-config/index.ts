@@ -83,12 +83,30 @@ serve(async (req) => {
         addOnsEnabled: rawSettings.addOnsEnabled ?? rawSettings.addOns?.enabled ?? false,
         discountBarEnabled: rawSettings.discountBarEnabled ?? rawSettings.discountPromoEnabled ?? rawSettings.discountBar?.enabled ?? false,
         announcementText: rawSettings.announcementText || '',
-        discountCode: rawSettings.discountCode || ''
+        discountCode: rawSettings.discountCode || '',
+
+        // Analytics
+        googleAnalyticsId: rawSettings.googleAnalyticsId || '',
+        facebookPixelId: rawSettings.facebookPixelId || ''
       };
+
+      // Get upsell products if upsells are enabled
+      let upsellProducts = [];
+      if (normalized.upsellsEnabled) {
+        const { data: upsells } = await supabase
+          .from('upsell_products')
+          .select('*')
+          .eq('shop_domain', shopDomain)
+          .eq('is_active', true)
+          .order('display_order', { ascending: true });
+        
+        upsellProducts = upsells || [];
+      }
       
       return new Response(JSON.stringify({ 
         success: true, 
         settings: normalized,
+        upsellProducts,
         subscription: {
           status: config?.subscription_status || 'trial',
           plan: config?.subscription_plan || 'starter',

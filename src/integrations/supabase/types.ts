@@ -66,6 +66,7 @@ export type Database = {
           subscription_status: string | null
           trial_ends_at: string | null
           updated_at: string
+          upsell_product_ids: string[] | null
         }
         Insert: {
           created_at?: string
@@ -76,6 +77,7 @@ export type Database = {
           subscription_status?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          upsell_product_ids?: string[] | null
         }
         Update: {
           created_at?: string
@@ -86,6 +88,7 @@ export type Database = {
           subscription_status?: string | null
           trial_ends_at?: string | null
           updated_at?: string
+          upsell_product_ids?: string[] | null
         }
         Relationships: []
       }
@@ -121,6 +124,51 @@ export type Database = {
           orders_processed?: number | null
           revenue_generated?: number | null
           shop_domain?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      upsell_products: {
+        Row: {
+          created_at: string
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          product_handle: string
+          product_id: string
+          product_image_url: string | null
+          product_price: number
+          product_title: string
+          shop_domain: string
+          target_products: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          product_handle: string
+          product_id: string
+          product_image_url?: string | null
+          product_price: number
+          product_title: string
+          shop_domain: string
+          target_products?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          product_handle?: string
+          product_id?: string
+          product_image_url?: string | null
+          product_price?: number
+          product_title?: string
+          shop_domain?: string
+          target_products?: string[] | null
           updated_at?: string
         }
         Relationships: []

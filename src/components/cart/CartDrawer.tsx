@@ -37,15 +37,16 @@ export const CartDrawer = ({
   const [quantities, setQuantities] = useState<{ [key: number]: number }>({});
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [upsellProducts, setUpsellProducts] = useState<any[]>([]);
 
   // Load configuration from Supabase
   useEffect(() => {
     loadConfiguration();
+    loadUpsells();
   }, [shopDomain]);
 
   const loadConfiguration = async () => {
     try {
-      setLoading(true);
       const { getShopDomain } = await import('@/lib/shop');
       const shop = shopDomain || getShopDomain();
       const { data, error } = await supabase.functions.invoke('shop-config', {
@@ -57,6 +58,7 @@ export const CartDrawer = ({
       
       if (data?.success) {
         setSettings(data.settings);
+        setUpsellProducts(data.upsellProducts || []);
       } else {
         // Default settings
         setSettings({
@@ -83,6 +85,23 @@ export const CartDrawer = ({
     }
   };
 
+  const loadUpsells = async () => {
+    try {
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = shopDomain || getShopDomain();
+      const { data } = await supabase.functions.invoke('upsells', {
+        method: 'GET',
+        headers: { 'x-shop-domain': shop }
+      });
+
+      if (data?.success) {
+        setUpsellProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error('Failed to load upsells:', error);
+    }
+  };
+
   // Currency: prefer storefront currency if available
   const storefrontCurrency = (typeof window !== 'undefined') ? (window as any)?.Shopify?.currency?.active : undefined;
   const displayCurrency = storefrontCurrency || currency;
@@ -103,21 +122,6 @@ export const CartDrawer = ({
     // In real implementation, this would call Shopify Cart API
     console.log("Remove item:", itemId);
   };
-
-  const upsellProducts = [
-    {
-      id: 101,
-      title: "Premium Screen Protector",
-      price: 19.99,
-      image: "https://images.unsplash.com/photo-1563013544-824ae1b704b3?w=80&h=80&fit=crop",
-    },
-    {
-      id: 102,
-      title: "Wireless Charging Pad",
-      price: 34.99,
-      image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?w=80&h=80&fit=crop",
-    },
-  ];
 
   const addOnProducts = [
     {
@@ -253,20 +257,20 @@ export const CartDrawer = ({
           </div>
 
           {/* Upsells */}
-          {settings?.upsellsEnabled && (
+          {settings?.upsellsEnabled && upsellProducts.length > 0 && (
           <div className="space-y-4">
             <h3 className="font-medium">Frequently bought together</h3>
             <div className="grid grid-cols-2 gap-3">
-              {upsellProducts.map((product) => (
+              {upsellProducts.slice(0, 4).map((product) => (
                 <div key={product.id} className="product-card">
                   <img 
-                    src={product.image}
-                    alt={product.title}
+                    src={product.product_image_url || "https://images.unsplash.com/photo-1563013544-824ae1b704b3?w=60&h=60&fit=crop"}
+                    alt={product.product_title}
                     className="w-full h-20 rounded-lg object-cover mb-2"
                   />
-                  <h4 className="font-medium text-xs mb-1">{product.title}</h4>
+                  <h4 className="font-medium text-xs mb-1">{product.product_title}</h4>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">{currency} {product.price}</span>
+                    <span className="text-sm font-semibold">{displayCurrency} {product.product_price}</span>
                     <Button size="sm" className="h-6 text-xs px-2">
                       Add
                     </Button>

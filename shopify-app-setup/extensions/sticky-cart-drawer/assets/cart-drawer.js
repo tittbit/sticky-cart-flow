@@ -50,7 +50,10 @@ class StickyCartDrawer {
       if (!res.ok) throw new Error('Settings fetch failed');
 
       const data = await res.json();
+      
+      // Extract both settings and upsells from response
       this.settings = this.normalizeSettings(data.settings || {});
+      this.upsellProducts = data.upsellProducts || [];
     } catch (error) {
       console.error('Failed to load cart drawer settings:', error);
       // Safe minimal defaults; everything else configurable from dashboard

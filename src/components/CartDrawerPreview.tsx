@@ -101,11 +101,12 @@ export const CartDrawerPreview = () => {
   const testAnalytics = async () => {
     try {
       const { getShopDomain } = await import('@/lib/shop');
-      const shop = getShopDomain();
+      const shopDomain = getShopDomain();
+      
       // Send test analytics event
       const { error } = await supabase.functions.invoke('analytics', {
         method: 'POST',
-        headers: { 'x-shop-domain': shop },
+        headers: { 'x-shop-domain': shopDomain },
         body: {
           eventType: 'cart_test',
           sessionId: 'preview-session',
@@ -315,7 +316,6 @@ export const CartDrawerPreview = () => {
         </CardContent>
       </Card>
 
-      {/* Cart Drawer Component */}
       <CartDrawer 
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
@@ -324,6 +324,7 @@ export const CartDrawerPreview = () => {
         position={settings?.drawerPosition}
         themeColor={settings?.themeColor}
         currency={currency}
+        shopDomain={shop}
       />
 
       {/* Sticky Cart Button */}
@@ -333,6 +334,7 @@ export const CartDrawerPreview = () => {
         enabled={settings?.stickyButtonEnabled}
         position={settings?.stickyButtonPosition}
         text={settings?.stickyButtonText}
+        shopDomain={shop}
       />
     </div>
   );

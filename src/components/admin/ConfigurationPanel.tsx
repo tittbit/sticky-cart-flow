@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { UpsellsManager } from "./UpsellsManager";
 
 export const ConfigurationPanel = () => {
   const { toast } = useToast();
@@ -34,6 +36,10 @@ export const ConfigurationPanel = () => {
     freeShippingThreshold: 75,
     discountCode: "SAVE10",
     announcementText: "Free shipping on orders over $75!",
+    
+    // Analytics
+    googleAnalyticsId: "",
+    facebookPixelId: "",
   });
 
   // Load settings on component mount
@@ -154,155 +160,205 @@ export const ConfigurationPanel = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Feature Toggle Cards */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {featureCards.map((feature) => (
-          <Card key={feature.id} className="card-gradient hover-lift">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="text-2xl">{feature.icon}</span>
-                  <div>
-                    <CardTitle className="text-base">{feature.title}</CardTitle>
-                    {feature.badge && (
-                      <Badge 
-                        variant={feature.badge === "Pro" ? "default" : "secondary"}
-                        className="mt-1 text-xs"
-                      >
-                        {feature.badge}
-                      </Badge>
-                    )}
+    <Tabs defaultValue="general" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-3">
+        <TabsTrigger value="general">General Settings</TabsTrigger>
+        <TabsTrigger value="upsells">Product Upsells</TabsTrigger>
+        <TabsTrigger value="analytics">Analytics</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="general" className="space-y-6">
+        {/* Feature Toggle Cards */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {featureCards.map((feature) => (
+            <Card key={feature.id} className="card-gradient hover-lift">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-2xl">{feature.icon}</span>
+                    <div>
+                      <CardTitle className="text-base">{feature.title}</CardTitle>
+                      {feature.badge && (
+                        <Badge 
+                          variant={feature.badge === "Pro" ? "default" : "secondary"}
+                          className="mt-1 text-xs"
+                        >
+                          {feature.badge}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
+                  <Switch
+                    checked={feature.enabled}
+                    onCheckedChange={(checked) => handleSettingChange(feature.key, checked)}
+                  />
                 </div>
-                <Switch
-                  checked={feature.enabled}
-                  onCheckedChange={(checked) => handleSettingChange(feature.key, checked)}
-                />
-              </div>
-              <CardDescription className="text-sm">
-                {feature.description}
-              </CardDescription>
+                <CardDescription className="text-sm">
+                  {feature.description}
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+
+        {/* Detailed Configuration */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Cart Drawer Settings */}
+          <Card className="form-section">
+            <CardHeader>
+              <CardTitle>Cart Drawer Appearance</CardTitle>
+              <CardDescription>Customize how your cart drawer looks and behaves</CardDescription>
             </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="drawerPosition">Drawer Position</Label>
+                <Select value={settings.drawerPosition} onValueChange={(value) => handleSettingChange("drawerPosition", value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="right">Slide from Right</SelectItem>
+                    <SelectItem value="left">Slide from Left</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="themeColor">Theme Color</Label>
+                <div className="flex space-x-2">
+                  <Input
+                    id="themeColor"
+                    type="color"
+                    value={settings.themeColor}
+                    onChange={(e) => handleSettingChange("themeColor", e.target.value)}
+                    className="w-16 h-10"
+                  />
+                  <Input
+                    value={settings.themeColor}
+                    onChange={(e) => handleSettingChange("themeColor", e.target.value)}
+                    placeholder="#3B82F6"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="buttonPosition">Sticky Button Position</Label>
+                <Select value={settings.buttonPosition} onValueChange={(value) => handleSettingChange("buttonPosition", value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                    <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                    <SelectItem value="top-right">Top Right</SelectItem>
+                    <SelectItem value="top-left">Top Left</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
           </Card>
-        ))}
-      </div>
 
-      {/* Detailed Configuration */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Cart Drawer Settings */}
-        <Card className="form-section">
-          <CardHeader>
-            <CardTitle>Cart Drawer Appearance</CardTitle>
-            <CardDescription>Customize how your cart drawer looks and behaves</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="drawerPosition">Drawer Position</Label>
-              <Select value={settings.drawerPosition} onValueChange={(value) => handleSettingChange("drawerPosition", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="right">Slide from Right</SelectItem>
-                  <SelectItem value="left">Slide from Left</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="themeColor">Theme Color</Label>
-              <div className="flex space-x-2">
+          {/* Feature Settings */}
+          <Card className="form-section">
+            <CardHeader>
+              <CardTitle>Feature Configuration</CardTitle>
+              <CardDescription>Configure thresholds and promotional content</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="freeShippingThreshold">Free Shipping Threshold ($)</Label>
                 <Input
-                  id="themeColor"
-                  type="color"
-                  value={settings.themeColor}
-                  onChange={(e) => handleSettingChange("themeColor", e.target.value)}
-                  className="w-16 h-10"
-                />
-                <Input
-                  value={settings.themeColor}
-                  onChange={(e) => handleSettingChange("themeColor", e.target.value)}
-                  placeholder="#3B82F6"
-                  className="flex-1"
+                  id="freeShippingThreshold"
+                  type="number"
+                  value={settings.freeShippingThreshold}
+                  onChange={(e) => handleSettingChange("freeShippingThreshold", Number(e.target.value))}
+                  placeholder="75"
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="buttonPosition">Sticky Button Position</Label>
-              <Select value={settings.buttonPosition} onValueChange={(value) => handleSettingChange("buttonPosition", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bottom-right">Bottom Right</SelectItem>
-                  <SelectItem value="bottom-left">Bottom Left</SelectItem>
-                  <SelectItem value="top-right">Top Right</SelectItem>
-                  <SelectItem value="top-left">Top Left</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="space-y-2">
+                <Label htmlFor="discountCode">Discount Code</Label>
+                <Input
+                  id="discountCode"
+                  value={settings.discountCode}
+                  onChange={(e) => handleSettingChange("discountCode", e.target.value)}
+                  placeholder="SAVE10"
+                />
+              </div>
 
-        {/* Feature Settings */}
-        <Card className="form-section">
+              <div className="space-y-2">
+                <Label htmlFor="announcementText">Announcement Text</Label>
+                <Input
+                  id="announcementText"
+                  value={settings.announcementText}
+                  onChange={(e) => handleSettingChange("announcementText", e.target.value)}
+                  placeholder="Free shipping on orders over $75!"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="buttonText">Sticky Button Text</Label>
+                <Input
+                  id="buttonText"
+                  value={settings.buttonText}
+                  onChange={(e) => handleSettingChange("buttonText", e.target.value)}
+                  placeholder="Cart"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Save Button */}
+        <div className="flex justify-end">
+          <Button onClick={handleSave} className="gradient-primary text-white px-8" disabled={loading}>
+            {loading ? "Saving..." : "Save Configuration"}
+          </Button>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="upsells">
+        <UpsellsManager />
+      </TabsContent>
+
+      <TabsContent value="analytics">
+        <Card className="card-gradient">
           <CardHeader>
-            <CardTitle>Feature Configuration</CardTitle>
-            <CardDescription>Configure thresholds and promotional content</CardDescription>
+            <CardTitle>Analytics Configuration</CardTitle>
+            <CardDescription>
+              Configure tracking and analytics integration
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="freeShippingThreshold">Free Shipping Threshold ($)</Label>
+              <Label htmlFor="googleAnalyticsId">Google Analytics ID</Label>
               <Input
-                id="freeShippingThreshold"
-                type="number"
-                value={settings.freeShippingThreshold}
-                onChange={(e) => handleSettingChange("freeShippingThreshold", Number(e.target.value))}
-                placeholder="75"
+                id="googleAnalyticsId"
+                value={settings.googleAnalyticsId || ''}
+                onChange={(e) => handleSettingChange("googleAnalyticsId", e.target.value)}
+                placeholder="GA4-XXXXXXX"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="discountCode">Discount Code</Label>
+              <Label htmlFor="facebookPixelId">Facebook Pixel ID</Label>
               <Input
-                id="discountCode"
-                value={settings.discountCode}
-                onChange={(e) => handleSettingChange("discountCode", e.target.value)}
-                placeholder="SAVE10"
+                id="facebookPixelId"
+                value={settings.facebookPixelId || ''}
+                onChange={(e) => handleSettingChange("facebookPixelId", e.target.value)}
+                placeholder="123456789"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="announcementText">Announcement Text</Label>
-              <Input
-                id="announcementText"
-                value={settings.announcementText}
-                onChange={(e) => handleSettingChange("announcementText", e.target.value)}
-                placeholder="Free shipping on orders over $75!"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="buttonText">Sticky Button Text</Label>
-              <Input
-                id="buttonText"
-                value={settings.buttonText}
-                onChange={(e) => handleSettingChange("buttonText", e.target.value)}
-                placeholder="Cart"
-              />
+            <div className="mt-6">
+              <Button onClick={handleSave} className="gradient-primary text-white" disabled={loading}>
+                {loading ? "Saving..." : "Save Analytics Settings"}
+              </Button>
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button onClick={handleSave} className="gradient-primary text-white px-8" disabled={loading}>
-          {loading ? "Saving..." : "Save Configuration"}
-        </Button>
-      </div>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 };
