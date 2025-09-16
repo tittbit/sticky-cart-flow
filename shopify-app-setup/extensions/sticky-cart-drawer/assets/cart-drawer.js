@@ -323,6 +323,15 @@ class StickyCartDrawer {
         .cart-drawer.open .cart-drawer-overlay{opacity:1;visibility:visible;}
         .cart-drawer-panel{position:fixed;top:0;right:0;width:380px;max-width:90vw;height:100%;background:#fff;transform:translateX(100%);transition:transform .3s ease;box-shadow:-4px 0 16px rgba(0,0,0,.15);display:flex;flex-direction:column;z-index:1;}
         .cart-drawer.open .cart-drawer-panel{transform:translateX(0);}
+        /* Hide/disable common theme carts when our drawer is open */
+        body[data-sticky-cart-open] #CartDrawer,
+        body[data-sticky-cart-open] .cart-drawer--open,
+        body[data-sticky-cart-open] [data-cart-drawer],
+        body[data-sticky-cart-open] [data-drawer-id="cart"],
+        body[data-sticky-cart-open] .js-sidebar-cart,
+        body[data-sticky-cart-open] .drawer--cart,
+        body[data-sticky-cart-open] .cart-popup,
+        body[data-sticky-cart-open] [aria-controls*="Cart"] { display: none !important; }
       `;
       document.head.appendChild(style);
     }

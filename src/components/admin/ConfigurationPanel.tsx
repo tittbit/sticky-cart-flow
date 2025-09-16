@@ -45,6 +45,15 @@ export const ConfigurationPanel = () => {
 
   // Load settings on component mount
   useEffect(() => {
+    // Hydrate from local draft to avoid reset when switching tabs
+    try {
+      const draft = localStorage.getItem('scd_settings_draft');
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        setSettings(prev => ({ ...prev, ...parsed }));
+      }
+    } catch {}
+    // Then fetch from DB and merge
     loadSettings();
   }, []);
 
@@ -85,7 +94,11 @@ export const ConfigurationPanel = () => {
           googleAnalyticsId: s.googleAnalyticsId || '',
           facebookPixelId: s.facebookPixelId || ''
         };
-        setSettings(prev => ({ ...prev, ...mapped }));
+        setSettings(prev => {
+          const merged = { ...prev, ...mapped } as any;
+          try { localStorage.setItem('scd_settings_draft', JSON.stringify(merged)); } catch {}
+          return merged;
+        });
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -96,24 +109,55 @@ export const ConfigurationPanel = () => {
   };
 
   const handleSettingChange = (key: string, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings(prev => {
+      const next = { ...prev, [key]: value } as any;
+      try { localStorage.setItem('scd_settings_draft', JSON.stringify(next)); } catch {}
+      return next;
+    });
   };
-
   const handleSave = async () => {
     try {
       setLoading(true);
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
 
-      const { data } = await supabase.functions.invoke('shop-config', {
+      // Map panel state -> API expected keys
+      const payload = {
+        cartDrawerEnabled: settings.cartDrawerEnabled,
+        drawerPosition: settings.drawerPosition,
+        themeColor: settings.themeColor,
+
+        stickyButtonEnabled: settings.stickyButtonEnabled,
+        stickyButtonText: settings.buttonText,
+        stickyButtonPosition: settings.buttonPosition,
+
+        upsellsEnabled: settings.upsellsEnabled,
+        addOnsEnabled: settings.addOnsEnabled,
+
+        freeShippingEnabled: settings.freeShippingBarEnabled,
+        freeShippingThreshold: settings.freeShippingThreshold,
+
+        discountBarEnabled: settings.discountPromoEnabled,
+        discountCode: settings.discountCode,
+        announcementText: settings.announcementText,
+
+        googleAnalyticsId: settings.googleAnalyticsId,
+        facebookPixelId: settings.facebookPixelId,
+      };
+
+      const { data, error } = await supabase.functions.invoke('shop-config', {
         method: 'POST',
         headers: { 'x-shop-domain': shop },
-        body: { settings }
+        body: { settings: payload }
       });
 
+      if (error) throw error;
+
       if (data?.success) {
-        // Let preview reflect instantly
-        window.dispatchEvent(new CustomEvent('shop-config:updated', { detail: settings }));
+        // Clear draft since persisted
+        try { localStorage.setItem('scd_settings_draft', JSON.stringify(payload)); } catch {}
+        // Notify preview
+        window.dispatchEvent(new CustomEvent('shop-config:updated', { detail: payload }));
         toast({ title: 'Settings saved!', description: 'Your cart drawer configuration has been updated.' });
       } else {
         throw new Error(data?.error || 'Failed to save settings');
@@ -125,7 +169,6 @@ export const ConfigurationPanel = () => {
       setLoading(false);
     }
   };
-
   const featureCards = [
     {
       id: "cartDrawer",
