@@ -62,30 +62,18 @@ serve(async (req) => {
         });
       }
 
-      // Delete existing products for this shop and recreate
-      await supabase
-        .from('upsell_products')
-        .delete()
-        .eq('shop_domain', shopDomain);
+      // Use transactional replace function to prevent data loss
+      const { error } = await supabase.rpc('replace_upsell_products', {
+        p_shop_domain: shopDomain,
+        p_products: JSON.stringify(products)
+      });
 
-      if (products.length > 0) {
-        const productsWithShop = products.map((product, index) => ({
-          ...product,
-          shop_domain: shopDomain,
-          display_order: index,
-        }));
-
-        const { error } = await supabase
-          .from('upsell_products')
-          .insert(productsWithShop);
-
-        if (error) {
-          console.error('Error saving upsells:', error);
-          return new Response(JSON.stringify({ error: 'Failed to save upsells' }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
+      if (error) {
+        console.error('Error saving upsells:', error);
+        return new Response(JSON.stringify({ error: 'Failed to save upsells' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
       return new Response(JSON.stringify({ success: true, message: 'Upsells updated successfully' }), {

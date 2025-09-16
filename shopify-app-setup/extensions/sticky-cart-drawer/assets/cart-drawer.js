@@ -45,6 +45,30 @@ class StickyCartDrawer {
     await this.loadCartData();
   }
 
+  async loadAddOns() {
+    try {
+      const response = await fetch('https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/addons', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-shop-domain': this.shopDomain,
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZnp4bXBzY25kem51YWVveGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDY2NzQsImV4cCI6MjA3MzI4MjY3NH0.xB_mlFv8uai35Vpil4yVsu1QqXyaa4IY9rHiYzbftAg',
+          'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZnp4bXBzY25kem51YWVveGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDY2NzQsImV4cCI6MjA3MzI4MjY3NH0.xB_mlFv8uai35Vpil4yVsu1QqXyaa4IY9rHiYzbftAg'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          this.addOnProducts = data.products || [];
+          console.log('Add-ons loaded:', this.addOnProducts.length);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load add-ons:', error);
+    }
+  }
+
   async determineShopDomain() {
     // 1) Check URL parameter first
     if (typeof window !== 'undefined') {
@@ -140,8 +164,10 @@ class StickyCartDrawer {
       
       if (data.success) {
         this.settings = this.normalizeSettings(data.settings || {});
-        this.upsellProducts = (data.upsellProducts || []).filter(p => p.target_products && p.target_products.length > 0);
-        this.addOnProducts = (data.upsellProducts || []).filter(p => !p.target_products || p.target_products.length === 0);
+        this.upsellProducts = data.upsellProducts || [];
+        
+        // Load add-ons separately
+        await this.loadAddOns();
         console.log('Settings loaded successfully:', this.settings);
         console.log('Upsells loaded:', this.upsellProducts.length);
         console.log('Add-ons loaded:', this.addOnProducts.length);
@@ -744,40 +770,45 @@ class StickyCartDrawer {
     const upsellsGrid = this.drawer?.querySelector('.upsells-grid');
     if (!upsellsGrid) return;
 
-    upsellsGrid.innerHTML = this.upsellProducts.slice(0, 3).map(product => `
-      <div class="upsell-item" style="
-        display: flex;
-        gap: 12px;
-        padding: 12px;
-        border: 1px solid #eee;
-        border-radius: 6px;
-        margin-bottom: 8px;
-      ">
-        <img src="${product.product_image_url || ''}" alt="${product.product_title}" style="
-          width: 50px;
-          height: 50px;
-          object-fit: cover;
-          border-radius: 4px;
+    upsellsGrid.innerHTML = this.upsellProducts.slice(0, 3).map(product => {
+      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString() === product.product_id?.toString());
+      
+      return `
+        <div class="upsell-item" style="
+          display: flex;
+          gap: 12px;
+          padding: 12px;
+          border: 1px solid #eee;
+          border-radius: 6px;
+          margin-bottom: 8px;
+          background: ${isInCart ? '#f0f9ff' : 'white'};
         ">
-        <div style="flex: 1;">
-          <h4 style="margin: 0 0 4px 0; font-size: 13px; font-weight: 500;">${product.product_title}</h4>
-          <div style="font-size: 12px; font-weight: 600;">${this.formatCurrency(product.product_price)}</div>
+          <img src="${product.product_image_url || ''}" alt="${product.product_title}" style="
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+          ">
+          <div style="flex: 1;">
+            <h4 style="margin: 0 0 4px 0; font-size: 13px; font-weight: 500;">${product.product_title}</h4>
+            <div style="font-size: 12px; font-weight: 600;">${this.formatCurrency(product.product_price)}</div>
+          </div>
+          <button class="add-upsell" data-id="${product.product_id}" style="
+            padding: 6px 12px;
+            background: ${isInCart ? '#6b7280' : (this.settings.themeColor || '#000000')};
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: ${isInCart ? 'default' : 'pointer'};
+            font-size: 12px;
+          " ${isInCart ? 'disabled' : ''}>${isInCart ? 'Added' : 'Add'}</button>
         </div>
-        <button class="add-upsell" data-id="${product.product_id}" style="
-          padding: 6px 12px;
-          background: ${this.settings.themeColor || '#000000'};
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-        ">Add</button>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     // Bind upsell click events
     upsellsGrid.onclick = (e) => {
-      if (e.target?.classList.contains('add-upsell')) {
+      if (e.target?.classList.contains('add-upsell') && !e.target.disabled) {
         const productId = e.target.dataset.id;
         this.addUpsellToCart(productId);
       }

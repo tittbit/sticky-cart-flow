@@ -237,6 +237,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      replace_addon_products: {
+        Args: { p_products: Json; p_shop_domain: string }
+        Returns: undefined
+      }
+      replace_upsell_products: {
+        Args: { p_products: Json; p_shop_domain: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
