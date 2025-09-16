@@ -143,7 +143,7 @@ class StickyCartDrawer {
     button.className = 'sticky-cart-button';
     button.innerHTML = `
       <span class="cart-icon">🛒</span>
-      <span class="cart-text">${this.settings.stickyButton.text || 'Cart'}</span>
+      <span class="cart-text">${this.settings.stickyButton.text}</span>
       <span class="cart-count">0</span>
     `;
     
