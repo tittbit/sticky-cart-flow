@@ -38,11 +38,13 @@ export const CartDrawer = ({
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [upsellProducts, setUpsellProducts] = useState<any[]>([]);
+  const [addOnProducts, setAddOnProducts] = useState<any[]>([]);
 
   // Load configuration from Supabase
   useEffect(() => {
     loadConfiguration();
     loadUpsells();
+    loadAddOns();
   }, [shopDomain]);
 
   const loadConfiguration = async () => {
@@ -123,18 +125,35 @@ export const CartDrawer = ({
     console.log("Remove item:", itemId);
   };
 
-  const addOnProducts = [
+  const loadAddOns = async () => {
+    try {
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = shopDomain || getShopDomain();
+      const { data } = await supabase.functions.invoke('addons', {
+        method: 'GET',
+        headers: { 'x-shop-domain': shop }
+      });
+
+      if (data?.success) {
+        setAddOnProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error('Failed to load add-ons:', error);
+    }
+  };
+
+  const addOnProductsToDisplay = addOnProducts.length > 0 ? addOnProducts : [
     {
       id: 201,
-      title: "2-Year Warranty Protection",
-      price: 29.99,
-      checked: false,
+      product_title: "2-Year Warranty Protection",
+      product_price: 29.99,
+      default_selected: false,
     },
     {
       id: 202,
-      title: "Express Shipping",
-      price: 9.99,
-      checked: false,
+      product_title: "Express Shipping",
+      product_price: 9.99,
+      default_selected: false,
     },
   ];
 
@@ -148,15 +167,15 @@ export const CartDrawer = ({
         onClick={onClose}
       />
       
-      {/* Drawer */}
-      <div 
-        className={`fixed ${actualPosition === 'left' ? 'left-0' : 'right-0'} top-0 h-full w-full max-w-md bg-background shadow-custom-xl z-50 ${actualPosition === 'left' ? 'animate-slide-in-left' : 'animate-slide-in-right'} overflow-y-auto`}
-        style={{ 
-          '--theme-color': actualThemeColor,
-          borderLeft: actualPosition === 'right' ? `2px solid ${actualThemeColor}20` : 'none',
-          borderRight: actualPosition === 'left' ? `2px solid ${actualThemeColor}20` : 'none'
-        } as React.CSSProperties}
-      >
+        {/* Drawer */}
+        <div 
+          className={`fixed ${actualPosition === 'left' ? 'left-0' : 'right-0'} top-0 h-full w-full max-w-md bg-background shadow-custom-xl z-50 ${actualPosition === 'left' ? 'animate-slide-in-left' : 'animate-slide-in-right'} overflow-y-auto`}
+          style={{ 
+            '--theme-color': actualThemeColor,
+            borderLeft: actualPosition === 'right' ? `2px solid ${actualThemeColor}20` : 'none',
+            borderRight: actualPosition === 'left' ? `2px solid ${actualThemeColor}20` : 'none'
+          } as React.CSSProperties}
+        >
         {/* Header */}
         <div className="sticky top-0 bg-background border-b p-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Shopping Cart ({items.length})</h2>
@@ -285,16 +304,19 @@ export const CartDrawer = ({
           {settings?.addOnsEnabled && (
           <div className="space-y-3">
             <h3 className="font-medium">Protect your purchase</h3>
-            {addOnProducts.map((addon) => (
+            {addOnProductsToDisplay.map((addon) => (
               <label key={addon.id} className="flex items-center space-x-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
                 <input 
                   type="checkbox" 
                   className="w-4 h-4 text-primary"
-                  defaultChecked={addon.checked}
+                  defaultChecked={addon.default_selected}
                 />
                 <div className="flex-1">
-                  <div className="font-medium text-sm">{addon.title}</div>
-                  <div className="text-xs text-muted-foreground">+{currency} {addon.price}</div>
+                  <div className="font-medium text-sm">{addon.product_title}</div>
+                  <div className="text-xs text-muted-foreground">+{displayCurrency} {addon.product_price}</div>
+                  {addon.description && (
+                    <div className="text-xs text-muted-foreground mt-1">{addon.description}</div>
+                  )}
                 </div>
               </label>
             ))}
@@ -333,7 +355,7 @@ export const CartDrawer = ({
           <div className="sticky bottom-0 bg-background pt-4 border-t space-y-4">
             <div className="flex items-center justify-between text-lg font-semibold">
               <span>Total:</span>
-              <span>{currency} {total.toFixed(2)}</span>
+              <span>{displayCurrency} {total.toFixed(2)}</span>
             </div>
             
             <div className="space-y-2">

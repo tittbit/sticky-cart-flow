@@ -47,34 +47,14 @@ export const AddOnsManager = () => {
       setLoading(true);
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
-      
-      // Load from upsell_products table with add-on flag or create separate table
-      const { data, error } = await supabase
-        .from('upsell_products')
-        .select('*')
-        .eq('shop_domain', shop)
-        .order('display_order');
-
-      if (error) throw error;
-      
-      // Filter for add-ons (we'll use target_products empty array to indicate add-ons)
-      const addOns = (data || [])
-        .filter(p => p.target_products.length === 0)
-        .map(p => ({
-          id: p.id,
-          product_id: p.product_id,
-          product_title: p.product_title,
-          product_handle: p.product_handle,
-          product_price: p.product_price,
-          product_image_url: p.product_image_url,
-          description: '',
-          default_selected: false,
-          is_active: p.is_active,
-          display_order: p.display_order
-        }));
-
-      setAddOnProducts(addOns);
-      setSearchQueries(addOns.map(() => ''));
+      const { data } = await supabase.functions.invoke('addons', {
+        method: 'GET',
+        headers: { 'x-shop-domain': shop }
+      });
+      if (data?.success) {
+        setAddOnProducts(data.products || []);
+        setSearchQueries((data.products || []).map(() => ''));
+      }
     } catch (error) {
       console.error('Error loading add-ons:', error);
       toast({ title: 'Error', description: 'Failed to load add-on products.', variant: 'destructive' });
@@ -158,36 +138,18 @@ export const AddOnsManager = () => {
         p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
       );
 
-      // Delete existing add-ons (target_products = [])
-      await supabase
-        .from('upsell_products')
-        .delete()
-        .eq('shop_domain', shop)
-        .eq('target_products', []);
+      const { data } = await supabase.functions.invoke('addons', {
+        method: 'POST',
+        headers: { 'x-shop-domain': shop },
+        body: { products: validProducts }
+      });
 
-      // Insert new add-ons
-      if (validProducts.length > 0) {
-        const { error } = await supabase
-          .from('upsell_products')
-          .insert(
-            validProducts.map(p => ({
-              shop_domain: shop,
-              product_id: p.product_id,
-              product_title: p.product_title,
-              product_handle: p.product_handle,
-              product_price: p.product_price,
-              product_image_url: p.product_image_url,
-              target_products: [], // Empty array indicates add-on
-              is_active: p.is_active,
-              display_order: p.display_order
-            }))
-          );
-
-        if (error) throw error;
+      if (data?.success) {
+        toast({ title: 'Success', description: 'Add-on products saved successfully!' });
+        await loadAddOns();
+      } else {
+        throw new Error(data?.error || 'Failed to save add-ons');
       }
-
-      toast({ title: 'Success', description: 'Add-on products saved successfully!' });
-      await loadAddOns();
     } catch (error) {
       console.error('Error saving add-ons:', error);
       toast({ title: 'Error', description: 'Failed to save add-on products. Please try again.', variant: 'destructive' });

@@ -6,7 +6,7 @@ verify_jwt = false
 [functions.analytics]
 verify_jwt = false
 
-[functions.upsells]
+[functions.addons]
 verify_jwt = false
 
 [functions.billing]

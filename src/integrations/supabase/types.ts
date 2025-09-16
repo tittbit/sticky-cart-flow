@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      addon_products: {
+        Row: {
+          created_at: string
+          default_selected: boolean
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          product_handle: string
+          product_id: string
+          product_image_url: string | null
+          product_price: number
+          product_title: string
+          shop_domain: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_selected?: boolean
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          product_handle: string
+          product_id: string
+          product_image_url?: string | null
+          product_price: number
+          product_title: string
+          shop_domain: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_selected?: boolean
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          product_handle?: string
+          product_id?: string
+          product_image_url?: string | null
+          product_price?: number
+          product_title?: string
+          shop_domain?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cart_analytics: {
         Row: {
           cart_total: number | null
