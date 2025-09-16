@@ -10,6 +10,7 @@ class StickyCartDrawer {
     this.shopDomain = null;
     this.shopCurrency = 'USD'; // Will be updated from shop data
     this.upsellProducts = [];
+    this.addOnProducts = [];
     
     this.init();
   }
@@ -138,8 +139,11 @@ class StickyCartDrawer {
       
       if (data.success) {
         this.settings = this.normalizeSettings(data.settings || {});
-        this.upsellProducts = data.upsellProducts || [];
+        this.upsellProducts = (data.upsellProducts || []).filter(p => p.target_products && p.target_products.length > 0);
+        this.addOnProducts = (data.upsellProducts || []).filter(p => !p.target_products || p.target_products.length === 0);
         console.log('Settings loaded successfully:', this.settings);
+        console.log('Upsells loaded:', this.upsellProducts.length);
+        console.log('Add-ons loaded:', this.addOnProducts.length);
       } else {
         throw new Error('Settings response indicated failure');
       }
@@ -571,6 +575,7 @@ class StickyCartDrawer {
       this.updateCartTotal();
       this.updateFreeShippingProgress();
       this.updateUpsells();
+      this.updateAddOns();
     }
   }
 
@@ -732,7 +737,147 @@ class StickyCartDrawer {
         ">Add</button>
       </div>
     `).join('');
+
+    // Bind upsell click events
+    upsellsGrid.onclick = (e) => {
+      if (e.target?.classList.contains('add-upsell')) {
+        const productId = e.target.dataset.id;
+        this.addUpsellToCart(productId);
+      }
+    };
   }
+
+  updateAddOns() {
+    if (!this.settings?.addOns?.enabled || !this.addOnProducts?.length) return;
+
+    const addOnsList = this.drawer?.querySelector('.addons-list');
+    if (!addOnsList) return;
+
+    addOnsList.innerHTML = this.addOnProducts.map((addon, index) => {
+      const isInCart = this.cartData?.items?.some(item => item.product_id?.toString() === addon.product_id?.toString());
+      
+      return `
+        <div class="addon-item" style="
+          display: flex;
+          gap: 12px;
+          padding: 12px;
+          border: 1px solid #eee;
+          border-radius: 6px;
+          margin-bottom: 8px;
+          background: ${isInCart ? '#f0f9ff' : 'white'};
+        ">
+          <input type="checkbox" 
+                 id="addon-${index}" 
+                 data-id="${addon.product_id}"
+                 data-price="${addon.product_price}"
+                 data-handle="${addon.product_handle}"
+                 ${isInCart ? 'checked' : ''}
+                 style="margin-top: 4px;">
+          ${addon.product_image_url ? `
+            <img src="${addon.product_image_url}" alt="${addon.product_title}" style="
+              width: 50px;
+              height: 50px;
+              object-fit: cover;
+              border-radius: 4px;
+            ">
+          ` : ''}
+          <div style="flex: 1;">
+            <label for="addon-${index}" style="
+              display: block;
+              margin: 0 0 4px 0;
+              font-size: 13px;
+              font-weight: 500;
+              cursor: pointer;
+            ">${addon.product_title}</label>
+            ${addon.description ? `<div style="font-size: 11px; color: #666; margin-bottom: 4px;">${addon.description}</div>` : ''}
+            <div style="font-size: 12px; font-weight: 600; color: ${this.settings.themeColor || '#000000'};">
+              ${this.formatCurrency(addon.product_price)}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Bind add-on checkbox events
+    addOnsList.onclick = (e) => {
+      if (e.target?.type === 'checkbox') {
+        const checkbox = e.target;
+        const productId = checkbox.dataset.id;
+        const price = parseFloat(checkbox.dataset.price);
+        const handle = checkbox.dataset.handle;
+        this.toggleAddOn(productId, handle, price, checkbox.checked);
+      }
+    };
+  }
+
+  async addUpsellToCart(productId) {
+    try {
+      const response = await fetch('/cart/add.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [{ id: productId, quantity: 1 }]
+        })
+      });
+
+      if (response.ok) {
+        await this.loadCartData();
+        this.trackEvent('upsell_added', { productId });
+      } else {
+        throw new Error('Failed to add upsell');
+      }
+    } catch (error) {
+      console.error('Failed to add upsell:', error);
+    }
+  }
+
+  async toggleAddOn(productId, handle, price, isChecked) {
+    try {
+      if (isChecked) {
+        // Add to cart
+        const response = await fetch('/cart/add.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: [{ id: productId, quantity: 1 }]
+          })
+        });
+
+        if (response.ok) {
+          await this.loadCartData();
+          this.trackEvent('addon_added', { productId, handle, price });
+        } else {
+          throw new Error('Failed to add add-on');
+        }
+      } else {
+        // Remove from cart
+        const cartItem = this.cartData?.items?.find(item => item.product_id?.toString() === productId?.toString());
+        if (cartItem) {
+          const response = await fetch('/cart/change.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: cartItem.key,
+              quantity: 0
+            })
+          });
+
+          if (response.ok) {
+            await this.loadCartData();
+            this.trackEvent('addon_removed', { productId, handle, price });
+          } else {
+            throw new Error('Failed to remove add-on');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Toggle add-on failed:', error);
+      // Revert checkbox state on error
+      const checkbox = this.drawer?.querySelector(`[data-id="${productId}"]`);
+      if (checkbox) {
+        checkbox.checked = !isChecked;
+      }
+    }
 
   async updateQuantity(key, change) {
     const item = this.cartData?.items?.find(item => item.key === key);

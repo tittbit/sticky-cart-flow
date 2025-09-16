@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { UpsellsManager } from "./UpsellsManager";
+import { AddOnsManager } from "./AddOnsManager";
 
 export const ConfigurationPanel = () => {
   const { toast } = useToast();
@@ -184,9 +185,10 @@ export const ConfigurationPanel = () => {
 
   return (
     <Tabs defaultValue="general" className="space-y-6">
-      <TabsList className="grid w-full grid-cols-3">
+      <TabsList className="grid w-full grid-cols-4">
         <TabsTrigger value="general">General Settings</TabsTrigger>
         <TabsTrigger value="upsells">Product Upsells</TabsTrigger>
+        <TabsTrigger value="addons">Add-On Products</TabsTrigger>
         <TabsTrigger value="analytics">Analytics</TabsTrigger>
       </TabsList>
 
@@ -343,6 +345,10 @@ export const ConfigurationPanel = () => {
 
       <TabsContent value="upsells">
         <UpsellsManager />
+      </TabsContent>
+
+      <TabsContent value="addons">
+        <AddOnsManager />
       </TabsContent>
 
       <TabsContent value="analytics">
