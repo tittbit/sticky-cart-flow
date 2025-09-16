@@ -20,11 +20,7 @@ export const AnalyticsDashboard = () => {
 
   useEffect(() => {
     loadAnalytics();
-    
-    // Simulate real-time updates by adding some demo data
-    if (analytics.metrics.cartOpens === 0) {
-      simulateInitialData();
-    }
+    // Demo seeding disabled to prevent incorrect shop_domain entries
   }, []);
 
   const loadAnalytics = async () => {

@@ -35,7 +35,25 @@ class StickyCartDrawer {
         return;
       }
 
-      const shopDomain = (window.Shopify && window.Shopify.shop) || window.SHOP_DOMAIN || localStorage.getItem('shop_domain') || 'demo-shop.myshopify.com';
+      let shopDomain = (window.Shopify && window.Shopify.shop) || window.SHOP_DOMAIN || localStorage.getItem('shop_domain') || '';
+      if (!shopDomain) {
+        // Wait briefly for Shopify global to be available to avoid falling back to a demo domain
+        for (let i = 0; i < 20 && !shopDomain; i++) {
+          await new Promise((r) => setTimeout(r, 50));
+          shopDomain = (window.Shopify && window.Shopify.shop) || window.SHOP_DOMAIN || localStorage.getItem('shop_domain') || '';
+        }
+      }
+      if (!shopDomain && location.hostname.endsWith('.myshopify.com')) {
+        // As a last resort, use the myshopify hostname if present
+        shopDomain = location.hostname;
+      }
+      if (shopDomain) {
+        try { localStorage.setItem('shop_domain', shopDomain); } catch {}
+      } else {
+        console.warn('Shop domain not detected; disabling cart drawer until detected');
+        this.settings = { enabled: false };
+        return;
+      }
 
       // Load settings directly from Supabase Edge Function
       const res = await fetch('https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/shop-config', {
