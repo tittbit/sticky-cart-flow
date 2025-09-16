@@ -135,7 +135,7 @@ export const AddOnsManager = () => {
       const shop = getShopDomain();
 
       const validProducts = addOnProducts.filter(p => 
-        p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
+        p.product_id.trim() && p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
       );
 
       const { data } = await supabase.functions.invoke('addons', {
