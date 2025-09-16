@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Trash2, Plus, ShoppingCart } from "lucide-react";
+import { Trash2, Plus, ShoppingCart, Search } from "lucide-react";
 
 interface UpsellProduct {
   id?: string;
@@ -19,10 +19,21 @@ interface UpsellProduct {
   is_active: boolean;
 }
 
+interface ProductSearchResult {
+  id: string;
+  title: string;
+  handle: string;
+  price: number;
+  image: string | null;
+}
+
 export const UpsellsManager = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [upsellProducts, setUpsellProducts] = useState<UpsellProduct[]>([]);
+  const [searchQueries, setSearchQueries] = useState<string[]>([]);
+  const [searchResults, setSearchResults] = useState<Record<number, ProductSearchResult[]>>({});
+  const [searchLoadingIndex, setSearchLoadingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     loadUpsells();
@@ -33,14 +44,13 @@ export const UpsellsManager = () => {
       setLoading(true);
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
-      
       const { data } = await supabase.functions.invoke('upsells', {
         method: 'GET',
         headers: { 'x-shop-domain': shop }
       });
-
       if (data?.success) {
         setUpsellProducts(data.products || []);
+        setSearchQueries((data.products || []).map(() => ''));
       }
     } catch (error) {
       console.error('Error loading upsells:', error);
@@ -60,6 +70,7 @@ export const UpsellsManager = () => {
       target_products: [],
       is_active: true
     }]);
+    setSearchQueries(prev => [...prev, '']);
   };
 
   const updateUpsellProduct = (index: number, field: keyof UpsellProduct, value: any) => {
@@ -70,6 +81,45 @@ export const UpsellsManager = () => {
 
   const removeUpsellProduct = (index: number) => {
     setUpsellProducts(prev => prev.filter((_, i) => i !== index));
+    setSearchQueries(prev => prev.filter((_, i) => i !== index));
+    setSearchResults(prev => {
+      const copy = { ...prev };
+      delete copy[index];
+      return copy;
+    });
+  };
+
+  const searchProducts = async (index: number) => {
+    try {
+      const query = searchQueries[index]?.trim();
+      if (!query || query.length < 2) {
+        toast({ title: 'Enter at least 2 characters', variant: 'destructive' });
+        return;
+      }
+      setSearchLoadingIndex(index);
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
+      const { data, error } = await supabase.functions.invoke('products-proxy', {
+        headers: { 'x-shop-domain': shop },
+        body: { action: 'search', q: query }
+      });
+      if (error) throw error;
+      setSearchResults(prev => ({ ...prev, [index]: data?.products || [] }));
+    } catch (err) {
+      console.error('Search failed', err);
+      toast({ title: 'Search failed', description: 'Could not fetch products', variant: 'destructive' });
+    } finally {
+      setSearchLoadingIndex(null);
+    }
+  };
+
+  const selectProduct = (index: number, p: ProductSearchResult) => {
+    updateUpsellProduct(index, 'product_id', p.id);
+    updateUpsellProduct(index, 'product_title', p.title);
+    updateUpsellProduct(index, 'product_handle', p.handle);
+    updateUpsellProduct(index, 'product_price', p.price);
+    updateUpsellProduct(index, 'product_image_url', p.image || '');
+    toast({ title: 'Product selected', description: p.title });
   };
 
   const handleSave = async () => {
@@ -78,7 +128,6 @@ export const UpsellsManager = () => {
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
 
-      // Filter out invalid products
       const validProducts = upsellProducts.filter(p => 
         p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
       );
@@ -114,7 +163,7 @@ export const UpsellsManager = () => {
                 Product Upsells Manager
               </CardTitle>
               <CardDescription>
-                Configure products to show as upsells in the cart drawer
+                Pick products from your store to show as upsells in the cart drawer
               </CardDescription>
             </div>
             <Badge variant="secondary">
@@ -140,7 +189,53 @@ export const UpsellsManager = () => {
                 </Button>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
+              {/* Product search */}
+              <div className="grid md:grid-cols-3 gap-4 items-end">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor={`search-${index}`}>Search product</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id={`search-${index}`}
+                      value={searchQueries[index] || ''}
+                      onChange={(e) => setSearchQueries(prev => prev.map((q, i) => i === index ? e.target.value : (q || '')))}
+                      placeholder="Type product name..."
+                    />
+                    <Button onClick={() => searchProducts(index)} disabled={searchLoadingIndex === index}>
+                      <Search className="w-4 h-4 mr-2" />
+                      {searchLoadingIndex === index ? 'Searching...' : 'Search'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Badge variant={product.is_active ? 'default' : 'secondary'}>
+                    {product.is_active ? 'Active' : 'Inactive'}
+                  </Badge>
+                </div>
+              </div>
+
+              {searchResults[index]?.length ? (
+                <div className="mt-4 grid md:grid-cols-2 gap-3">
+                  {searchResults[index].map((p) => (
+                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-md border">
+                      {p.image ? (
+                        <img src={p.image} alt={p.title} className="w-12 h-12 rounded object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 rounded bg-muted" />
+                      )}
+                      <div className="flex-1">
+                        <div className="font-medium line-clamp-1">{p.title}</div>
+                        <div className="text-sm text-muted-foreground">${'{'}p.price.toFixed(2){'}'}</div>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => selectProduct(index, p)}>Select</Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Manual overrides (still editable) */}
+              <div className="grid md:grid-cols-2 gap-4 mt-4">
                 <div className="space-y-2">
                   <Label htmlFor={`title-${index}`}>Product Title</Label>
                   <Input

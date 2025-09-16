@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.billing]
 verify_jwt = false
+
+[functions.products-proxy]
+verify_jwt = false

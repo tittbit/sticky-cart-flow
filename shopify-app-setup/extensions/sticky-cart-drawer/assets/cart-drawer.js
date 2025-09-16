@@ -41,7 +41,6 @@ class StickyCartDrawer {
       const res = await fetch('https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/shop-config', {
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-store',
           'x-shop-domain': shopDomain
         },
         method: 'GET'
