@@ -57,7 +57,15 @@ serve(async (req) => {
       // Use Shopify's search suggestions endpoint (public)
       const suggestUrl = `https://${shopDomain}/search/suggest.json?q=${encodeURIComponent(q)}&resources[type]=product&resources[limit]=10`;
 
-      const resp = await fetch(suggestUrl, { headers: { 'Accept': 'application/json' } });
+      const resp = await fetch(suggestUrl, { 
+        headers: { 
+          'Accept': 'application/json',
+          // Pretend to be a real browser to avoid bot/redirect challenges
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
       if (!resp.ok) {
         console.error('Suggest endpoint failed', await resp.text());
         return new Response(JSON.stringify({ error: 'Failed to search products' }), {
@@ -73,6 +81,7 @@ serve(async (req) => {
         handle: p.handle,
         price: Number(p.price || p.price_min || 0) / 100, // prices in cents
         image: p.image || p.image_url || null,
+        variant_id: p.variants?.[0]?.id ? String(p.variants[0].id) : String(p.id), // First variant ID or product ID
       }));
 
       return new Response(JSON.stringify({ success: true, products }), {
@@ -89,7 +98,14 @@ serve(async (req) => {
       }
 
       const prodUrl = `https://${shopDomain}/products/${encodeURIComponent(handle)}.json`;
-      const resp = await fetch(prodUrl, { headers: { 'Accept': 'application/json' } });
+      const resp = await fetch(prodUrl, { 
+        headers: { 
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
       if (!resp.ok) {
         console.error('Product JSON failed', await resp.text());
         return new Response(JSON.stringify({ error: 'Failed to fetch product' }), {
@@ -108,6 +124,7 @@ serve(async (req) => {
         handle: product?.handle || '',
         price: Number(firstVariant?.price || 0),
         image: firstImage,
+        variant_id: firstVariant?.id ? String(firstVariant.id) : String(product?.id || ''),
       };
 
       return new Response(JSON.stringify({ success: true, product: formatted }), {

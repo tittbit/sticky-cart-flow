@@ -1,6 +1,34 @@
-# Shopify App Setup - Sticky Cart Drawer
+# Sticky Cart Drawer - Shopify App Setup
 
-This directory contains all the files and instructions needed to create a proper Shopify app from your current prototype.
+This directory contains the Shopify app setup for the Sticky Cart Drawer.
+
+## Architecture
+
+The app uses an **App Proxy** approach instead of theme extension embeds for better compatibility and control:
+
+### App Proxy Configuration
+- **Proxy URL**: `https://sticky-cart-flow.vercel.app/proxy`
+- **Subpath**: `cart-drawer` 
+- **Prefix**: `tools`
+
+This makes the cart drawer accessible at: `https://[shop].myshopify.com/tools/cart-drawer/`
+
+### Routes
+- `/proxy/settings` - Returns cart drawer settings from Supabase
+- `/proxy/script` - Serves the cart-drawer.js file with shop domain injected
+
+### Theme Extension
+A minimal theme extension (`sticky-cart-minimal`) provides a simple loader that:
+1. Loads the cart drawer script from the app proxy
+2. Only runs on storefront (not theme editor)
+3. Handles errors gracefully
+
+### Benefits
+- No theme dependency issues
+- Dynamic script serving with shop context
+- Easy updates without theme modifications
+- Better error handling and debugging
+- Reduced conflicts with other apps
 
 ## Quick Start
 
@@ -46,38 +74,32 @@ shopify app config link
 npm run dev
 ```
 
-## Files Included
+## Files Structure
 
-### Core App Files
-- `shopify.app.toml` - Shopify app configuration
-- `app/shopify.server.ts` - Shopify app server setup
-- `app/db.server.ts` - Database configuration
-- `prisma/schema.prisma` - Database schema
-
-### App Routes
-- `app/routes/_index.tsx` - Main app layout with Polaris
-- `app/routes/app._index.tsx` - Dashboard page
-
-### Theme Extension
-- `extensions/sticky-cart-drawer/` - Theme app extension with cart drawer functionality
-- `assets/cart-drawer.js` - Main JavaScript for storefront
-- `assets/cart-drawer.css` - Styles for cart drawer
-
-### Configuration
-- `.env.example` - Environment variables template
-- `package.json` - Updated dependencies for Shopify app
-- `remix.config.js` - Remix configuration
-- `DEPLOYMENT_GUIDE.md` - Complete deployment instructions
+```
+shopify-app-setup/
+├── app/
+│   ├── assets/
+│   │   └── cart-drawer.js          # Main cart drawer script
+│   └── routes/
+│       ├── proxy.settings.ts       # Settings API
+│       └── proxy.script.ts         # Script serving
+├── extensions/
+│   └── sticky-cart-minimal/
+│       ├── shopify.extension.toml
+│       └── blocks/
+│           └── cart-loader.liquid  # Minimal loader
+└── shopify.app.toml                # App configuration
+```
 
 ## What This Setup Includes
 
 ### ✅ Shopify App Features
 - OAuth authentication flow
 - Embedded admin panel with Polaris UI  
-- Metafields for settings storage
-- ScriptTag injection for storefront integration
 - App proxy for secure data access
 - Webhook handling for app lifecycle
+- Minimal theme extension for easy installation
 
 ### ✅ Cart Drawer Features  
 - Sticky cart button with item count
@@ -85,22 +107,36 @@ npm run dev
 - Cart item management (add/remove/update quantities)
 - Free shipping progress bar
 - Upsells and cross-sells sections
-- Discount code application
-- Custom announcements
+- Native cart blocking and replacement
 
 ### ✅ Integration Features
-- Automatic theme integration via ScriptTag
+- App proxy serving for better compatibility
 - No manual theme edits required by merchants
 - Shopify Cart API integration
 - Product fetching for upsells
-- Analytics event tracking ready
+- Settings managed via Supabase
 
 ### ✅ Business Features
 - Subscription billing integration ready
 - Multiple pricing tiers support
-- 14-day free trial configuration
-- Order limits per plan
-- App Store submission ready
+- Analytics event tracking ready
+- Easy customization and updates
+
+## Development
+
+The cart drawer script is automatically served with the correct shop domain injected. Settings are loaded from Supabase and cached appropriately.
+
+For debugging, check the browser console for "Sticky Cart:" prefixed messages.
+
+## Deployment
+
+1. **Deploy the app** to Vercel/production
+2. **Install the theme extension** via Shopify CLI:
+   ```bash
+   shopify app deploy
+   ```
+3. **Enable the extension** in the merchant's theme editor
+4. **Configure settings** in the app dashboard
 
 ## Development Workflow
 

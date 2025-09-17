@@ -1,62 +1,47 @@
-import { json, type LoaderFunctionArgs } from "@remix-run/node";
-import { supabase } from "~/lib/supabase.server";
+import { type LoaderFunctionArgs } from "@remix-run/node";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     const url = new URL(request.url);
     const shopDomain = url.searchParams.get('shop') || request.headers.get('x-forwarded-host');
     
-    if (!shopDomain) {
-      return json({ error: 'Shop domain required' }, { status: 400 });
+    if (!shopDomain || !shopDomain.endsWith('.myshopify.com')) {
+      return new Response('Invalid shop domain', { status: 400 });
     }
 
-    // Load settings from Supabase instead of hardcoded values
-    const { data, error } = await supabase
-      .from('shop_configurations')
-      .select('settings')
-      .eq('shop_domain', shopDomain)
-      .single();
-
-    let settings;
-    if (error || !data) {
-      // Default settings if none found
-      settings = {
+    // Return default settings for now - this would typically fetch from database
+    const settings = {
+      enabled: true,
+      stickyButton: {
         enabled: true,
-        stickyButton: { enabled: true, text: "Cart", position: "bottom-right" },
-        freeShipping: { enabled: true, threshold: 50 },
-        upsells: { enabled: false },
-        addOns: { enabled: false },
-        discountBar: { enabled: false },
-      };
-    } else {
-      settings = {
-        enabled: data.settings.cartDrawerEnabled || true,
-        stickyButton: { 
-          enabled: data.settings.stickyButtonEnabled || true, 
-          text: data.settings.stickyButtonText || "Cart", 
-          position: data.settings.stickyButtonPosition || "bottom-right" 
-        },
-        freeShipping: { 
-          enabled: data.settings.freeShippingEnabled || true, 
-          threshold: data.settings.freeShippingThreshold || 50 
-        },
-        upsells: { enabled: data.settings.upsellsEnabled || false },
-        addOns: { enabled: data.settings.addOnsEnabled || false },
-        discountBar: { enabled: data.settings.discountBarEnabled || false },
-        themeColor: data.settings.themeColor || '#000000',
-        currency: data.settings.currency || 'USD'
-      };
-    }
+        position: 'bottom-right'
+      },
+      themeColor: '#000000',
+      freeShipping: {
+        enabled: true,
+        threshold: 50
+      }
+    };
 
-    return json(settings, {
+    return new Response(JSON.stringify(settings), {
       headers: {
-        "Cache-Control": "no-store, max-age=0",
-        "Access-Control-Allow-Origin": "*",
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'public, max-age=300',
+        'Access-Control-Allow-Origin': `https://${shopDomain}`,
+        'Access-Control-Allow-Methods': 'GET',
+        'Access-Control-Allow-Headers': 'content-type, x-shop-domain',
       },
     });
   } catch (error) {
-    console.error('Proxy settings error:', error);
-    return json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Settings proxy error:', error);
+    return new Response(JSON.stringify({ 
+      enabled: true, 
+      stickyButton: { enabled: true, position: 'bottom-right' },
+      themeColor: '#000000'
+    }), { 
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 };
 

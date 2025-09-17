@@ -3,6 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { 
+  useCartDrawerLogic, 
+  FreeShippingBar, 
+  UpsellsSection, 
+  AddOnsSection 
+} from "./SharedCartDrawer";
 
 interface CartItem {
   id: number;
@@ -35,84 +41,76 @@ export const CartDrawer = ({
   shopDomain 
 }: CartDrawerProps) => {
   const [quantities, setQuantities] = useState<{ [key: number]: number }>({});
-  const [settings, setSettings] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [upsellProducts, setUpsellProducts] = useState<any[]>([]);
-  const [addOnProducts, setAddOnProducts] = useState<any[]>([]);
+  const [selectedUpsells, setSelectedUpsells] = useState<Set<string>>(new Set());
+  const [selectedAddOns, setSelectedAddOns] = useState<Set<string>>(new Set());
+  
+  // Use shared cart drawer logic
+  const { settings, loading, upsellProducts, addOnProducts } = useCartDrawerLogic(shopDomain);
 
-  // Load configuration from Supabase
+  // Initialize default selected add-ons
   useEffect(() => {
-    loadConfiguration();
-    loadUpsells();
-    loadAddOns();
-  }, [shopDomain]);
-
-  const loadConfiguration = async () => {
-    try {
-      const { getShopDomain } = await import('@/lib/shop');
-      const shop = shopDomain || getShopDomain();
-      const { data, error } = await supabase.functions.invoke('shop-config', {
-        method: 'GET',
-        headers: { 'x-shop-domain': shop }
-      });
-
-      if (error) throw error;
-      
-      if (data?.success) {
-        setSettings(data.settings);
-        setUpsellProducts(data.upsellProducts || []);
-      } else {
-        // Default settings
-        setSettings({
-          cartDrawerEnabled: true,
-          stickyButtonEnabled: true,
-          drawerPosition: 'right',
-          themeColor: '#000000',
-          freeShippingEnabled: true,
-          freeShippingThreshold: 50,
-          upsellsEnabled: false,
-          addOnsEnabled: false,
-          discountBarEnabled: false
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load configuration:', error);
-      setSettings({
-        cartDrawerEnabled: true,
-        freeShippingEnabled: true,
-        freeShippingThreshold: 50
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadUpsells = async () => {
-    try {
-      const { getShopDomain } = await import('@/lib/shop');
-      const shop = shopDomain || getShopDomain();
-      const { data } = await supabase.functions.invoke('upsells', {
-        method: 'GET',
-        headers: { 'x-shop-domain': shop }
-      });
-
-      if (data?.success) {
-        setUpsellProducts(data.products || []);
-      }
-    } catch (error) {
-      console.error('Failed to load upsells:', error);
-    }
-  };
+    const defaultSelected = new Set(
+      addOnProducts
+        .filter(addon => addon.default_selected)
+        .map(addon => addon.product_id)
+    );
+    setSelectedAddOns(defaultSelected);
+  }, [addOnProducts]);
 
   // Currency: prefer storefront currency if available
   const storefrontCurrency = (typeof window !== 'undefined') ? (window as any)?.Shopify?.currency?.active : undefined;
   const displayCurrency = storefrontCurrency || currency;
-
-  const freeShippingThreshold = settings?.freeShippingThreshold || 75;
-  const remainingForFreeShipping = Math.max(0, freeShippingThreshold - total);
-  const freeShippingProgress = Math.min(100, (total / freeShippingThreshold) * 100);
   const actualPosition = settings?.drawerPosition || position;
   const actualThemeColor = settings?.themeColor || themeColor;
+
+  // Calculate enhanced total including selected upsells and add-ons
+  const calculateEnhancedTotal = () => {
+    let enhancedTotal = total;
+    
+    // Add selected upsells
+    selectedUpsells.forEach(productId => {
+      const upsell = upsellProducts.find(u => u.product_id === productId);
+      if (upsell) {
+        enhancedTotal += parseFloat(upsell.product_price) || 0;
+      }
+    });
+    
+    // Add selected add-ons
+    selectedAddOns.forEach(productId => {
+      const addon = addOnProducts.find(a => a.product_id === productId);
+      if (addon) {
+        enhancedTotal += parseFloat(addon.product_price) || 0;
+      }
+    });
+    
+    return enhancedTotal;
+  };
+
+  const enhancedTotal = calculateEnhancedTotal();
+
+  const handleUpsellToggle = (productId: string, selected: boolean) => {
+    setSelectedUpsells(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(productId);
+      } else {
+        newSet.delete(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleAddOnToggle = (productId: string, selected: boolean) => {
+    setSelectedAddOns(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(productId);
+      } else {
+        newSet.delete(productId);
+      }
+      return newSet;
+    });
+  };
 
   const updateQuantity = (itemId: number, newQuantity: number) => {
     if (newQuantity > 0) {
@@ -125,37 +123,7 @@ export const CartDrawer = ({
     console.log("Remove item:", itemId);
   };
 
-  const loadAddOns = async () => {
-    try {
-      const { getShopDomain } = await import('@/lib/shop');
-      const shop = shopDomain || getShopDomain();
-      const { data } = await supabase.functions.invoke('addons', {
-        method: 'GET',
-        headers: { 'x-shop-domain': shop }
-      });
 
-      if (data?.success) {
-        setAddOnProducts(data.products || []);
-      }
-    } catch (error) {
-      console.error('Failed to load add-ons:', error);
-    }
-  };
-
-  const addOnProductsToDisplay = addOnProducts.length > 0 ? addOnProducts : [
-    {
-      id: 201,
-      product_title: "2-Year Warranty Protection",
-      product_price: 29.99,
-      default_selected: false,
-    },
-    {
-      id: 202,
-      product_title: "Express Shipping",
-      product_price: 9.99,
-      default_selected: false,
-    },
-  ];
 
   if (!isOpen) return null;
 
@@ -186,38 +154,11 @@ export const CartDrawer = ({
 
         <div className="p-4 space-y-6">
           {/* Free Shipping Progress */}
-          {settings?.freeShippingEnabled && (
-          <Card className="card-gradient">
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">Free shipping progress</span>
-                  {remainingForFreeShipping > 0 ? (
-                  <span className="text-muted-foreground">
-                    {displayCurrency} {remainingForFreeShipping.toFixed(2)} remaining
-                  </span>
-                  ) : (
-                    <Badge className="bg-success text-success-foreground">
-                      Free shipping unlocked! 🎉
-                    </Badge>
-                  )}
-                </div>
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill"
-                    style={{ width: `${freeShippingProgress}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {remainingForFreeShipping > 0 
-                    ? `Add ${displayCurrency} ${remainingForFreeShipping.toFixed(2)} more for free shipping!`
-                    : "You've qualified for free shipping!"
-                  }
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          )}
+          <FreeShippingBar 
+            settings={settings} 
+            total={enhancedTotal} 
+            currency={displayCurrency} 
+          />
 
           {/* Cart Items */}
           <div className="space-y-4">
@@ -276,52 +217,23 @@ export const CartDrawer = ({
           </div>
 
           {/* Upsells */}
-          {settings?.upsellsEnabled && upsellProducts.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="font-medium">Frequently bought together</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {upsellProducts.slice(0, 4).map((product) => (
-                <div key={product.id} className="product-card">
-                  <img 
-                    src={product.product_image_url || "https://images.unsplash.com/photo-1563013544-824ae1b704b3?w=60&h=60&fit=crop"}
-                    alt={product.product_title}
-                    className="w-full h-20 rounded-lg object-cover mb-2"
-                  />
-                  <h4 className="font-medium text-xs mb-1">{product.product_title}</h4>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">{displayCurrency} {product.product_price}</span>
-                    <Button size="sm" className="h-6 text-xs px-2">
-                      Add
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          )}
+          <UpsellsSection 
+            settings={settings}
+            upsellProducts={upsellProducts}
+            currency={displayCurrency}
+            items={items}
+            selectedUpsells={selectedUpsells}
+            onUpsellToggle={handleUpsellToggle}
+          />
 
           {/* Add-Ons */}
-          {settings?.addOnsEnabled && (
-          <div className="space-y-3">
-            <h3 className="font-medium">Protect your purchase</h3>
-            {addOnProductsToDisplay.map((addon) => (
-              <label key={addon.id} className="flex items-center space-x-3 p-3 rounded-lg border cursor-pointer hover:bg-muted/50">
-                <input 
-                  type="checkbox" 
-                  className="w-4 h-4 text-primary"
-                  defaultChecked={addon.default_selected}
-                />
-                <div className="flex-1">
-                  <div className="font-medium text-sm">{addon.product_title}</div>
-                  <div className="text-xs text-muted-foreground">+{displayCurrency} {addon.product_price}</div>
-                  {addon.description && (
-                    <div className="text-xs text-muted-foreground mt-1">{addon.description}</div>
-                  )}
-                </div>
-              </label>
-            ))}
-          </div>
-          )}
+          <AddOnsSection 
+            settings={settings}
+            addOnProducts={addOnProducts}
+            currency={displayCurrency}
+            selectedAddOns={selectedAddOns}
+            onAddOnToggle={handleAddOnToggle}
+          />
 
           {/* Discount Code */}
           {settings?.discountBarEnabled && (
@@ -355,7 +267,7 @@ export const CartDrawer = ({
           <div className="sticky bottom-0 bg-background pt-4 border-t space-y-4">
             <div className="flex items-center justify-between text-lg font-semibold">
               <span>Total:</span>
-              <span>{displayCurrency} {total.toFixed(2)}</span>
+              <span>{displayCurrency} {enhancedTotal.toFixed(2)}</span>
             </div>
             
             <div className="space-y-2">

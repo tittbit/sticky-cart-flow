@@ -37,6 +37,7 @@ export const UpsellsManager = () => {
 
   useEffect(() => {
     loadUpsells();
+    // Only load on mount, no auto-save
   }, []);
 
   const loadUpsells = async () => {
@@ -49,8 +50,10 @@ export const UpsellsManager = () => {
         headers: { 'x-shop-domain': shop }
       });
       if (data?.success) {
-        setUpsellProducts(data.products || []);
-        setSearchQueries((data.products || []).map(() => ''));
+        const products = data.products || [];
+        setUpsellProducts(products);
+        setSearchQueries(products.map(() => ''));
+        console.log('Loaded upsells:', products.length);
       }
     } catch (error) {
       console.error('Error loading upsells:', error);
@@ -114,7 +117,7 @@ export const UpsellsManager = () => {
   };
 
   const selectProduct = (index: number, p: ProductSearchResult) => {
-    updateUpsellProduct(index, 'product_id', p.id);
+    updateUpsellProduct(index, 'product_id', (p as any).variant_id || p.id);
     updateUpsellProduct(index, 'product_title', p.title);
     updateUpsellProduct(index, 'product_handle', p.handle);
     updateUpsellProduct(index, 'product_price', p.price);
@@ -128,21 +131,47 @@ export const UpsellsManager = () => {
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
 
-      const validProducts = upsellProducts.filter(p => 
-        p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
+      // Ensure each product has a product_id (variant) by resolving via handle when missing
+      const prepared = await Promise.all(
+        upsellProducts.map(async (p) => {
+          if (p.product_id?.trim()) return p;
+          if (p.product_handle?.trim()) {
+            try {
+              const { data } = await supabase.functions.invoke('products-proxy', {
+                headers: { 'x-shop-domain': shop },
+                body: { action: 'by_handle', handle: p.product_handle.trim() }
+              });
+              const prod = (data as any)?.product;
+              if (prod?.variant_id) {
+                return { ...p, product_id: String(prod.variant_id) } as UpsellProduct;
+              }
+            } catch (e) {
+              console.warn('Could not resolve variant by handle', p.product_handle, e);
+            }
+          }
+          return p;
+        })
       );
 
-      const { data } = await supabase.functions.invoke('upsells', {
+      const validProducts = prepared.filter(p =>
+        p.product_id?.trim() && p.product_title.trim() && p.product_handle.trim() && typeof p.product_price === 'number' && p.product_price > 0
+      );
+
+      console.log('Saving valid products:', validProducts.length, 'out of', prepared.length);
+
+      const { data, error } = await supabase.functions.invoke('upsells', {
         method: 'POST',
         headers: { 'x-shop-domain': shop },
         body: { products: validProducts }
       });
 
+      if (error) throw error;
+
       if (data?.success) {
         toast({ title: 'Success', description: 'Upsell products saved successfully!' });
         await loadUpsells();
       } else {
-        throw new Error(data?.error || 'Failed to save upsells');
+        throw new Error((data as any)?.error || 'Failed to save upsells');
       }
     } catch (error) {
       console.error('Error saving upsells:', error);

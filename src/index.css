@@ -193,11 +193,12 @@
   }
 
   .progress-bar {
-    @apply w-full h-2 bg-secondary rounded-full overflow-hidden;
+    @apply w-full h-2 bg-secondary rounded-full overflow-hidden relative;
   }
 
   .progress-fill {
-    @apply h-full bg-accent transition-all duration-300 rounded-full;
+    @apply h-full bg-gradient-to-r from-accent to-accent/80 transition-all duration-300 rounded-full;
+    background: linear-gradient(90deg, hsl(var(--accent)) 0%, hsl(var(--accent) / 0.8) 100%);
   }
 }
 

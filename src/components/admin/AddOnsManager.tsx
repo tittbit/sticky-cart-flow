@@ -40,6 +40,7 @@ export const AddOnsManager = () => {
 
   useEffect(() => {
     loadAddOns();
+    // Only load on mount, no auto-save
   }, []);
 
   const loadAddOns = async () => {
@@ -52,8 +53,10 @@ export const AddOnsManager = () => {
         headers: { 'x-shop-domain': shop }
       });
       if (data?.success) {
-        setAddOnProducts(data.products || []);
-        setSearchQueries((data.products || []).map(() => ''));
+        const products = data.products || [];
+        setAddOnProducts(products);
+        setSearchQueries(products.map(() => ''));
+        console.log('Loaded add-ons:', products.length);
       }
     } catch (error) {
       console.error('Error loading add-ons:', error);
@@ -120,7 +123,7 @@ export const AddOnsManager = () => {
   };
 
   const selectProduct = (index: number, p: ProductSearchResult) => {
-    updateAddOnProduct(index, 'product_id', p.id);
+    updateAddOnProduct(index, 'product_id', (p as any).variant_id || p.id);
     updateAddOnProduct(index, 'product_title', p.title);
     updateAddOnProduct(index, 'product_handle', p.handle);
     updateAddOnProduct(index, 'product_price', p.price);
@@ -134,21 +137,47 @@ export const AddOnsManager = () => {
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
 
-      const validProducts = addOnProducts.filter(p => 
-        p.product_title.trim() && p.product_handle.trim() && p.product_price > 0
+      // Ensure each product has a product_id (variant) by resolving via handle when missing
+      const prepared = await Promise.all(
+        addOnProducts.map(async (p) => {
+          if (p.product_id?.trim()) return p;
+          if (p.product_handle?.trim()) {
+            try {
+              const { data } = await supabase.functions.invoke('products-proxy', {
+                headers: { 'x-shop-domain': shop },
+                body: { action: 'by_handle', handle: p.product_handle.trim() }
+              });
+              const prod = (data as any)?.product;
+              if (prod?.variant_id) {
+                return { ...p, product_id: String(prod.variant_id) } as AddOnProduct;
+              }
+            } catch (e) {
+              console.warn('Could not resolve variant by handle', p.product_handle, e);
+            }
+          }
+          return p;
+        })
       );
 
-      const { data } = await supabase.functions.invoke('addons', {
+      const validProducts = prepared.filter(p => 
+        p.product_id?.trim() && p.product_title.trim() && p.product_handle.trim() && typeof p.product_price === 'number' && p.product_price > 0
+      );
+
+      console.log('Saving valid add-on products:', validProducts.length, 'out of', prepared.length);
+
+      const { data, error } = await supabase.functions.invoke('addons', {
         method: 'POST',
         headers: { 'x-shop-domain': shop },
         body: { products: validProducts }
       });
 
+      if (error) throw error;
+
       if (data?.success) {
         toast({ title: 'Success', description: 'Add-on products saved successfully!' });
         await loadAddOns();
       } else {
-        throw new Error(data?.error || 'Failed to save add-ons');
+        throw new Error((data as any)?.error || 'Failed to save add-ons');
       }
     } catch (error) {
       console.error('Error saving add-ons:', error);

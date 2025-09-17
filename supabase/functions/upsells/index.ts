@@ -30,7 +30,7 @@ serve(async (req) => {
     }
 
     if (req.method === 'GET') {
-      // Get upsell products for a shop
+      console.log('Fetching upsells for:', shopDomain);
       const { data: products, error } = await supabase
         .from('upsell_products')
         .select('*')
@@ -39,7 +39,7 @@ serve(async (req) => {
         .order('display_order', { ascending: true });
 
       if (error) {
-        console.error('Error fetching upsells:', error);
+        console.error('Database fetch error:', error);
         return new Response(JSON.stringify({ error: 'Failed to fetch upsells' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -56,7 +56,25 @@ serve(async (req) => {
       const { products } = await req.json();
       
       if (!products || !Array.isArray(products)) {
+        console.log('Invalid products payload:', products);
         return new Response(JSON.stringify({ error: 'Products array is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`Saving ${products.length} upsell products for ${shopDomain}`);
+      
+      // Validate all products have required fields
+      const invalidProducts = products.filter(p => 
+        !p.product_title?.trim() || !p.product_handle?.trim() || typeof p.product_price !== 'number'
+      );
+      
+      if (invalidProducts.length > 0) {
+        console.log('Invalid products found:', invalidProducts);
+        return new Response(JSON.stringify({ 
+          error: 'All products must have title, handle, and valid price' 
+        }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
