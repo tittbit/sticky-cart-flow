@@ -2,19 +2,20 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CartDrawer } from "./cart/CartDrawer";
-import { StickyCartButton } from "./cart/StickyCartButton";
-import { supabase } from "@/integrations/supabase/client";
+import { CartDrawerUnified } from "./cart/CartDrawerUnified";
+import { StickyCartButtonUnified } from "./cart/StickyCartButtonUnified";
+import { useCartDrawer } from "@/hooks/useCartDrawer";
 import { useToast } from "@/hooks/use-toast";
 
 export const CartDrawerPreview = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
-  const [settings, setSettings] = useState<any>(null);
   const [integrationStatus, setIntegrationStatus] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [shop, setShop] = useState<string>('');
+  
+  // Use unified cart hook
+  const { settings, loading, sendAnalytics } = useCartDrawer();
 
   const [cartItems] = useState([
     {
@@ -39,44 +40,15 @@ export const CartDrawerPreview = () => {
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   useEffect(() => {
-    loadConfiguration();
     loadIntegrationStatus();
-
-    // Live apply settings pushed from admin save
-    const onConfigUpdate = () => {
-      // Re-fetch from edge function to get normalized settings shape
-      loadConfiguration();
-    };
-    window.addEventListener('shop-config:updated', onConfigUpdate as EventListener);
-
-    // Periodic refresh as fallback
-    const interval = setInterval(loadConfiguration, 10000);
-
-    return () => {
-      window.removeEventListener('shop-config:updated', onConfigUpdate as EventListener);
-      clearInterval(interval);
-    };
-  }, []);
-
-  const loadConfiguration = async () => {
-    try {
+    
+    // Get shop domain for display
+    const getShopDomain = async () => {
       const { getShopDomain } = await import('@/lib/shop');
-      const shopDomain = getShopDomain();
-      setShop(shopDomain);
-      const { data } = await supabase.functions.invoke('shop-config', {
-        method: 'GET',
-        headers: { 'x-shop-domain': shopDomain }
-      });
-
-      if (data?.success) {
-        setSettings(data.settings);
-      }
-    } catch (error) {
-      console.error('Failed to load configuration:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      setShop(getShopDomain());
+    };
+    getShopDomain();
+  }, []);
 
   const loadIntegrationStatus = async () => {
     // Mock integration status - in production this would check actual integrations
@@ -100,23 +72,12 @@ export const CartDrawerPreview = () => {
 
   const testAnalytics = async () => {
     try {
-      const { getShopDomain } = await import('@/lib/shop');
-      const shopDomain = getShopDomain();
-      
-      // Send test analytics event
-      const { error } = await supabase.functions.invoke('analytics', {
-        method: 'POST',
-        headers: { 'x-shop-domain': shopDomain },
-        body: {
-          eventType: 'cart_test',
-          sessionId: 'preview-session',
-          cartTotal: cartTotal,
-          itemCount: itemCount,
-          eventData: { test: true, source: 'preview' }
-        }
+      await sendAnalytics('cart_test', {
+        cartTotal: cartTotal,
+        itemCount: itemCount,
+        test: true,
+        source: 'preview'
       });
-
-      if (error) throw error;
 
       toast({ title: 'Analytics Test Successful', description: 'Test event sent to analytics system' });
     } catch (error) {
@@ -133,8 +94,8 @@ export const CartDrawerPreview = () => {
     });
   };
 
-  // Get currency from settings or default to USD
-  const currency = settings?.currency || 'USD';
+  // Get currency from settings or default to USD  
+  const currency = 'USD';
 
   return (
     <div className={`space-y-6 transition-all duration-300 ${isMobileView ? 'max-w-sm mx-auto' : ''}`}>
@@ -316,25 +277,22 @@ export const CartDrawerPreview = () => {
         </CardContent>
       </Card>
 
-      <CartDrawer 
+      <CartDrawerUnified 
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         items={cartItems}
         total={cartTotal}
-        position={settings?.drawerPosition}
-        themeColor={settings?.themeColor}
-        currency={currency}
         shopDomain={shop}
+        isPreview={true}
+        onCheckout={() => toast({ title: 'Preview Mode', description: 'This is a preview. Checkout would redirect to cart.' })}
       />
 
       {/* Sticky Cart Button */}
-      <StickyCartButton 
+      <StickyCartButtonUnified 
         itemCount={itemCount}
         onClick={() => setIsDrawerOpen(true)}
-        enabled={settings?.stickyButtonEnabled}
-        position={settings?.stickyButtonPosition}
-        text={settings?.stickyButtonText}
         shopDomain={shop}
+        isVisible={true}
       />
     </div>
   );

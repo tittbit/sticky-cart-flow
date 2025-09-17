@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.app-proxy]
 verify_jwt = false
+
+[functions.upsells]
+verify_jwt = false
