@@ -169,9 +169,6 @@ class StickyCartDrawer {
   }
 
   async init() {
-    // Block native cart interactions immediately
-    this.blockNativeCart();
-    
     if (!this.shopDomain || !this.shopDomain.endsWith('.myshopify.com')) {
       console.warn('[Sticky Cart] Invalid shop domain, cart drawer disabled');
       return;
@@ -191,11 +188,14 @@ class StickyCartDrawer {
       return;
     }
     
-    // Initialize components
+    // Initialize components first
     this.createStickyButton();
     this.createCartDrawer();
     this.bindEvents();
     this.exposeGlobalMethods();
+    
+    // Block native cart interactions after components are ready
+    this.blockNativeCart();
     
     // Load initial cart data
     await this.loadCartData();
@@ -241,7 +241,7 @@ class StickyCartDrawer {
         e.stopPropagation();
         e.stopImmediatePropagation();
         console.log('[Sticky Cart] Blocked native cart interaction, opening our drawer');
-        this.openDrawer();
+        setTimeout(() => this.openDrawer(), 50); // Small delay to ensure drawer is ready
         return false;
       }
     }, true);
@@ -640,6 +640,12 @@ class StickyCartDrawer {
   }
 
   openDrawer() {
+    if (!this.cartDrawer || !this.cartOverlay) {
+      console.warn('[Sticky Cart] Drawer not initialized yet');
+      return;
+    }
+    
+    console.log('[Sticky Cart] Opening drawer...');
     this.isOpen = true;
     this.cartDrawer.style[this.drawerPosition] = '0px';
     this.cartOverlay.style.opacity = '1';
