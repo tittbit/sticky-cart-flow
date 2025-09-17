@@ -60,8 +60,7 @@ serve(async (req) => {
         addOnsEnabled: false,
         discountBarEnabled: false,
         announcementText: '',
-        discountCode: '',
-        storefrontCurrency: 'USD' // Default currency
+        discountCode: ''
       };
 
       // Merge DB settings with defaults then normalize keys to canonical shape
@@ -87,7 +86,10 @@ serve(async (req) => {
         discountBarEnabled: rawSettings.discountBarEnabled ?? rawSettings.discountPromoEnabled ?? rawSettings.discountBar?.enabled ?? false,
         announcementText: rawSettings.announcementText || '',
         discountCode: rawSettings.discountCode || '',
-        storefrontCurrency: rawSettings.storefrontCurrency || 'USD'
+
+        // Analytics
+        googleAnalyticsId: rawSettings.googleAnalyticsId || '',
+        facebookPixelId: rawSettings.facebookPixelId || ''
       };
 
       // Get upsell products if upsells are enabled
