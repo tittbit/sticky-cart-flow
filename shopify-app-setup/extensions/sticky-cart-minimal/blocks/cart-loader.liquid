@@ -17,10 +17,23 @@ Minimal cart loader - loads cart drawer via app proxy
   var chosenBase = null;
 
   function testBase(base) {
-    return fetch(base + '/test?shop=' + shopDomain, { credentials: 'include' })
+    console.log('[Sticky Cart] Testing URL:', base + '/test?shop=' + shopDomain);
+    return fetch(base + '/test?shop=' + shopDomain, { 
+      credentials: 'include',
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
       .then(function(r) {
+        console.log('[Sticky Cart] Response status:', r.status, 'Headers:', [...r.headers.entries()]);
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
+      })
+      .catch(function(err) {
+        console.error('[Sticky Cart] Request failed:', err);
+        throw err;
       });
   }
 
@@ -70,8 +83,22 @@ Minimal cart loader - loads cart drawer via app proxy
     var fallbackBtn = document.createElement('div');
     fallbackBtn.innerHTML = '🛒 Cart (Proxy Error)';
     fallbackBtn.style.cssText = 'position:fixed;bottom:20px;right:20px;background:red;color:white;padding:10px;border-radius:20px;z-index:999999;cursor:pointer;font-size:12px;';
-    fallbackBtn.onclick = function() { window.location.href = '/cart'; };
+    fallbackBtn.onclick = function() { 
+      console.error('Sticky Cart: App Proxy Error. Please check configuration:');
+      console.error('1. Shopify Admin -> Apps -> Your App -> App setup');
+      console.error('2. App Proxy URL should be: https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/app-proxy');
+      console.error('3. Subpath: cart-drawer, Prefix: tools');
+      console.error('4. Test URLs tried:', proxyBases.map(base => window.location.origin + base + '/test?shop=' + shopDomain));
+      window.location.href = '/cart'; 
+    };
     document.body.appendChild(fallbackBtn);
+    
+    // Also show detailed error information in console
+    console.error('Sticky Cart: Complete proxy configuration check:');
+    console.error('Shop Domain:', shopDomain);
+    console.error('Current URL:', window.location.href);
+    console.error('Expected proxy URLs:', proxyBases.map(base => window.location.origin + base + '/test?shop=' + shopDomain));
+    console.error('Supabase Function URL should be: https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/app-proxy');
   }
 
   // Start trying bases

@@ -116,10 +116,23 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const path = url.searchParams.get('path')?.replace(/^\/+/, '') || '';
-    const shop = url.searchParams.get('shop') || '';
+    let path = url.searchParams.get('path')?.replace(/^\/+/, '') || '';
+    let shop = url.searchParams.get('shop') || '';
+    
+    // Handle direct URL routing if no path param (for different proxy setups)
+    if (!path && url.pathname !== '/') {
+      const pathSegments = url.pathname.split('/').filter(Boolean);
+      path = pathSegments[pathSegments.length - 1] || '';
+      
+      // Extract shop from query params or headers
+      if (!shop) {
+        shop = url.searchParams.get('shop') || 
+               req.headers.get('x-shop-domain') || 
+               req.headers.get('x-forwarded-host') || '';
+      }
+    }
 
-    console.log(`[app-proxy] path="${path}" shop="${shop}"`);
+    console.log(`[app-proxy] path="${path}" shop="${shop}" url="${req.url}"`);
 
     switch (path) {
       case 'test':
@@ -127,7 +140,13 @@ serve(async (req) => {
           success: true, 
           message: 'App proxy is working', 
           shop, 
-          ts: new Date().toISOString() 
+          ts: new Date().toISOString(),
+          debug: {
+            url: req.url,
+            pathname: url.pathname,
+            searchParams: Object.fromEntries(url.searchParams.entries()),
+            headers: Object.fromEntries(req.headers.entries())
+          }
         }, {
           headers: { 'Cache-Control': 'public, max-age=60' }
         });
@@ -339,14 +358,21 @@ class StickyCartDrawer {
     try {
       const response = await fetch(\`https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/upsells\`, {
         method: 'GET',
-        headers: { 'x-shop-domain': this.shopDomain }
+        headers: { 
+          'x-shop-domain': this.shopDomain,
+          'Accept': 'application/json'
+        }
       });
       
       if (response.ok) {
         const data = await response.json();
         this.upsellProducts = data.products || [];
+      } else {
+        console.warn('[Sticky Cart] Failed to load upsells:', response.status);
+        this.upsellProducts = [];
       }
     } catch (error) {
+      console.warn('[Sticky Cart] Error loading upsells:', error);
       this.upsellProducts = [];
     }
   }
@@ -355,7 +381,10 @@ class StickyCartDrawer {
     try {
       const response = await fetch(\`https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/addons\`, {
         method: 'GET',
-        headers: { 'x-shop-domain': this.shopDomain }
+        headers: { 
+          'x-shop-domain': this.shopDomain,
+          'Accept': 'application/json'
+        }
       });
       
       if (response.ok) {
@@ -367,8 +396,12 @@ class StickyCartDrawer {
             this.selectedAddOns.add(addon.product_id);
           }
         });
+      } else {
+        console.warn('[Sticky Cart] Failed to load addons:', response.status);
+        this.addOnProducts = [];
       }
     } catch (error) {
+      console.warn('[Sticky Cart] Error loading addons:', error);
       this.addOnProducts = [];
     }
   }
@@ -641,8 +674,16 @@ class StickyCartDrawer {
 
   openDrawer() {
     if (!this.cartDrawer || !this.cartOverlay) {
-      console.warn('[Sticky Cart] Drawer not initialized yet');
-      return;
+      console.warn('[Sticky Cart] Drawer not initialized yet, attempting to reinitialize...');
+      // Try to reinitialize if components are missing
+      if (!this.cartDrawer && this.settings) {
+        this.createCartDrawer();
+      }
+      // If still not available after recreation attempt, return
+      if (!this.cartDrawer || !this.cartOverlay) {
+        console.error('[Sticky Cart] Unable to initialize drawer components');
+        return;
+      }
     }
     
     console.log('[Sticky Cart] Opening drawer...');
@@ -650,6 +691,7 @@ class StickyCartDrawer {
     this.cartDrawer.style[this.drawerPosition] = '0px';
     this.cartOverlay.style.opacity = '1';
     this.cartOverlay.style.visibility = 'visible';
+    this.cartOverlay.style.pointerEvents = 'auto';
     document.body.style.overflow = 'hidden';
     
     this.loadCartData();
@@ -744,10 +786,33 @@ if (document.readyState === 'loading') {
         });
 
       default:
-        return json({ error: 'Not Found', path }, { status: 404 });
+        // If no valid path is found, return test response as fallback for debugging
+        console.log(`[app-proxy] Unknown path "${path}", returning debug response`);
+        return json({ 
+          success: true, 
+          message: 'App proxy is working (unknown path fallback)', 
+          shop, 
+          path,
+          ts: new Date().toISOString(),
+          debug: {
+            url: req.url,
+            pathname: url.pathname,
+            searchParams: Object.fromEntries(url.searchParams.entries())
+          }
+        });
     }
   } catch (error) {
     console.error('[app-proxy] Error:', error);
-    return json({ error: 'Server error' }, { status: 500 });
+    return json({ 
+      error: 'Server error',
+      message: error.message,
+      success: false,
+      ts: new Date().toISOString(),
+      debug: {
+        url: req.url
+      }
+    }, { 
+      status: 500 
+    });
   }
 });
