@@ -352,7 +352,7 @@ class StickyCartDrawer {
         .cart-drawer.open{pointer-events:auto;}
         .cart-drawer-overlay{opacity:0;visibility:hidden;transition:all .3s ease;}
         .cart-drawer.open .cart-drawer-overlay{opacity:1;visibility:visible;}
-        .cart-drawer-panel{position:fixed;top:0;right:0;width:450px;height:100%;background:#fff;transform:translateX(100%);transition:transform .3s ease;box-shadow:-4px 0 16px rgba(0,0,0,.15);display:flex;flex-direction:column;z-index:1;}
+        .cart-drawer-panel{position:fixed;top:0;right:0;width:380px;max-width:90vw;height:100%;background:#fff;transform:translateX(100%);transition:transform .3s ease;box-shadow:-4px 0 16px rgba(0,0,0,.15);display:flex;flex-direction:column;z-index:1;}
         .cart-drawer.open .cart-drawer-panel{transform:translateX(0);}
         /* Hide/disable common theme carts when our drawer is open */
         body[data-sticky-cart-open] #CartDrawer,
@@ -396,7 +396,7 @@ class StickyCartDrawer {
           justify-content: space-between;
           align-items: center;
         ">
-          <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Shopping Cart (2)</h2>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Your Cart</h2>
           <button class="cart-drawer-close" style="
             background: none;
             border: none;
@@ -426,7 +426,7 @@ class StickyCartDrawer {
           <button class="checkout-button" style="
             width: 100%;
             padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: ${this.settings?.themeColor || '#000000'};
             color: white;
             border: none;
             border-radius: 8px;
@@ -665,16 +665,16 @@ class StickyCartDrawer {
       ">
         <div class="item-image" style="flex-shrink: 0;">
           <img src="${item.featured_image?.url || ''}" alt="${item.title}" style="
-            width: 80px;
-            height: 80px;
+            width: 60px;
+            height: 60px;
             object-fit: cover;
             border-radius: 6px;
           ">
         </div>
         <div class="item-details" style="flex: 1; min-width: 0;">
-          <h4 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 600; line-height: 1.3;">${item.title}</h4>
+          <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 500; line-height: 1.3;">${item.title}</h4>
           ${item.variant_title ? `<div style="font-size: 12px; color: #666; margin-bottom: 4px;">${item.variant_title}</div>` : ''}
-          <div style="font-size: 16px; font-weight: 600;">${this.formatCurrency(item.price / 100)}</div>
+          <div style="font-size: 14px; font-weight: 600;">${this.formatCurrency(item.price / 100)}</div>
         </div>
         <div class="item-controls" style="flex-shrink: 0; display: flex; flex-direction: column; align-items: end; gap: 8px;">
           <div class="quantity-controls" style="display: flex; align-items: center; gap: 8px;">
@@ -858,7 +858,7 @@ class StickyCartDrawer {
               cursor: pointer;
             ">${addon.product_title}</label>
             ${addon.description ? `<div style="font-size: 11px; color: #666; margin-bottom: 4px;">${addon.description}</div>` : ''}
-            <div style="font-size: 13px; font-weight: 500; color: ${this.settings.themeColor || '#000000'};">
+            <div style="font-size: 12px; font-weight: 600; color: ${this.settings.themeColor || '#000000'};">
               ${this.formatCurrency(addon.product_price)}
             </div>
           </div>
