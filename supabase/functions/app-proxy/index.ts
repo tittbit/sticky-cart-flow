@@ -588,19 +588,36 @@ class StickyCartDrawer {
   }
 
   bindEvents() {
-    this.cartDrawer.querySelector('.close-btn').addEventListener('click', () => this.closeDrawer());
-    this.cartDrawer.querySelector('.continue-shopping-btn').addEventListener('click', () => this.closeDrawer());
-    this.cartOverlay.addEventListener('click', () => this.closeDrawer());
+    if (!this.cartDrawer || !this.cartOverlay) {
+      console.error('[Sticky Cart] Cannot bind events - drawer components not found');
+      return;
+    }
+
+    const closeBtn = this.cartDrawer.querySelector('.close-btn');
+    const continueBtn = this.cartDrawer.querySelector('.continue-shopping-btn');
+    const checkoutBtn = this.cartDrawer.querySelector('.checkout-btn');
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.closeDrawer());
+    }
+    if (continueBtn) {
+      continueBtn.addEventListener('click', () => this.closeDrawer());
+    }
+    if (checkoutBtn) {
+      checkoutBtn.addEventListener('click', () => {
+        window.location.href = '/checkout';
+      });
+    }
     
-    this.cartDrawer.querySelector('.checkout-btn').addEventListener('click', () => {
-      window.location.href = '/checkout';
-    });
+    this.cartOverlay.addEventListener('click', () => this.closeDrawer());
     
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && this.isOpen) {
         this.closeDrawer();
       }
     });
+    
+    console.log('[Sticky Cart] Events bound successfully');
   }
 
   updateCartDisplay() {
@@ -678,6 +695,7 @@ class StickyCartDrawer {
       // Try to reinitialize if components are missing
       if (!this.cartDrawer && this.settings) {
         this.createCartDrawer();
+        this.bindEvents();
       }
       // If still not available after recreation attempt, return
       if (!this.cartDrawer || !this.cartOverlay) {
@@ -686,16 +704,34 @@ class StickyCartDrawer {
       }
     }
     
-    console.log('[Sticky Cart] Opening drawer...');
+    console.log('[Sticky Cart] Opening drawer...', {
+      drawer: !!this.cartDrawer,
+      overlay: !!this.cartOverlay,
+      position: this.drawerPosition,
+      isOpen: this.isOpen
+    });
+    
     this.isOpen = true;
+    
+    // Ensure drawer is properly positioned and visible
     this.cartDrawer.style[this.drawerPosition] = '0px';
+    this.cartDrawer.style.visibility = 'visible';
+    this.cartDrawer.style.opacity = '1';
+    this.cartDrawer.style.pointerEvents = 'auto';
+    
+    // Show overlay
     this.cartOverlay.style.opacity = '1';
     this.cartOverlay.style.visibility = 'visible';
     this.cartOverlay.style.pointerEvents = 'auto';
+    
+    // Prevent body scroll
     document.body.style.overflow = 'hidden';
     
+    // Update cart display
     this.loadCartData();
     this.trackEvent('cart_drawer_opened');
+    
+    console.log('[Sticky Cart] Drawer opened successfully');
   }
 
   closeDrawer() {
