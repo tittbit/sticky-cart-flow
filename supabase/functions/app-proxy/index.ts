@@ -193,32 +193,32 @@ class StickyCartDrawer {
       return;
     }
 
-    // Load all data in parallel
     console.log('[Sticky Cart] Loading configuration and data...');
-    await Promise.all([
-      this.loadSettings(),
-      this.loadShopData(),
-      this.loadUpsells(),
-      this.loadAddOns()
-    ]);
-    
+    // Load settings first (can be cached); do not block UI creation on other network calls
+    await this.loadSettings();
+
     if (!this.settings?.cartDrawerEnabled) {
       console.log('[Sticky Cart] Cart drawer disabled in settings');
       return;
     }
-    
-    // Initialize components first
+
+    // Initialize UI immediately for fast first paint
     this.createStickyButton();
     this.createCartDrawer();
     this.bindEvents();
     this.exposeGlobalMethods();
-    
-    // Block native cart interactions after components are ready
     this.blockNativeCart();
-    
-    // Load initial cart data
-    await this.loadCartData();
-    
+
+    // Kick off non-critical loads in background
+    Promise.all([
+      this.loadShopData(),
+      this.loadUpsells(),
+      this.loadAddOns()
+    ]).catch(err => console.warn('[Sticky Cart] Background load error', err));
+
+    // Load cart data (do not block)
+    this.loadCartData();
+
     console.log('[Sticky Cart] Initialization complete!');
   }
 
@@ -714,6 +714,8 @@ class StickyCartDrawer {
     this.isOpen = true;
     
     // Ensure drawer is properly positioned and visible
+    if (!document.body.contains(this.cartDrawer)) document.body.appendChild(this.cartDrawer);
+    if (!document.body.contains(this.cartOverlay)) document.body.appendChild(this.cartOverlay);
     this.cartDrawer.style[this.drawerPosition] = '0px';
     this.cartDrawer.style.visibility = 'visible';
     this.cartDrawer.style.opacity = '1';
@@ -726,6 +728,7 @@ class StickyCartDrawer {
     
     // Prevent body scroll
     document.body.style.overflow = 'hidden';
+    document.documentElement.classList.remove('js-drawer-open', 'cart-open', 'overflow-hidden');
     
     // Update cart display
     this.loadCartData();
@@ -737,8 +740,12 @@ class StickyCartDrawer {
   closeDrawer() {
     this.isOpen = false;
     this.cartDrawer.style[this.drawerPosition] = '-420px';
+    this.cartDrawer.style.pointerEvents = 'none';
+    this.cartDrawer.style.visibility = 'hidden';
+    this.cartDrawer.style.opacity = '0';
     this.cartOverlay.style.opacity = '0';
     this.cartOverlay.style.visibility = 'hidden';
+    this.cartOverlay.style.pointerEvents = 'none';
     document.body.style.overflow = '';
   }
 

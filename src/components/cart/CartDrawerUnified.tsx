@@ -181,7 +181,7 @@ export const CartDrawerUnified = ({
       
       {/* Drawer */}
       <div 
-        className={`fixed ${position === 'left' ? 'left-0' : 'right-0'} top-0 h-full w-full max-w-md bg-background shadow-custom-xl z-50 overflow-y-auto animate-slide-in-${position}`}
+        className={`fixed ${position === 'left' ? 'left-0' : 'right-0'} top-0 h-full w-full max-w-md bg-background shadow-custom-xl z-50 relative flex flex-col animate-enter`}
         style={{ 
           '--theme-color': themeColor,
           borderLeft: position === 'right' ? `2px solid ${themeColor}20` : 'none',
@@ -198,8 +198,8 @@ export const CartDrawerUnified = ({
             ✕
           </Button>
         </div>
-
-        <div className="p-4 space-y-6 pb-32">
+ 
+        <div className="p-4 space-y-6 pb-40 flex-1 overflow-y-auto">
           {/* Free Shipping Progress */}
           {settings.freeShippingEnabled && freeShippingThreshold > 0 && (
             <Card className="card-gradient border border-primary/20">
@@ -401,8 +401,8 @@ export const CartDrawerUnified = ({
           )}
         </div>
 
-        {/* Fixed Footer */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t p-4 space-y-4 max-w-md ml-auto mr-0">
+        {/* Footer inside drawer */}
+        <div className="absolute bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t p-4 space-y-4">
           <div className="flex items-center justify-between text-lg font-semibold">
             <span>Total:</span>
             <span className="text-primary" style={{ color: themeColor }}>
