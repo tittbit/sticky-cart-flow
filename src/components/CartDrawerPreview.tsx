@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CartDrawer } from "./cart/CartDrawer";
-import { StickyCartButton } from "./cart/StickyCartButton";
+import { UnifiedCartDrawer } from "./cart/UnifiedCartDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -316,7 +315,7 @@ export const CartDrawerPreview = () => {
         </CardContent>
       </Card>
 
-      <CartDrawer 
+      <UnifiedCartDrawer 
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         items={cartItems}
@@ -325,16 +324,10 @@ export const CartDrawerPreview = () => {
         themeColor={settings?.themeColor}
         currency={currency}
         shopDomain={shop}
-      />
-
-      {/* Sticky Cart Button */}
-      <StickyCartButton 
-        itemCount={itemCount}
-        onClick={() => setIsDrawerOpen(true)}
-        enabled={settings?.stickyButtonEnabled}
-        position={settings?.stickyButtonPosition}
-        text={settings?.stickyButtonText}
-        shopDomain={shop}
+        isPreview={true}
+        stickyButtonEnabled={settings?.stickyButtonEnabled}
+        stickyButtonText={settings?.stickyButtonText}
+        stickyButtonPosition={settings?.stickyButtonPosition}
       />
     </div>
   );

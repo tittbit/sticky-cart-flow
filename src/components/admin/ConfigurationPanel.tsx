@@ -145,6 +145,7 @@ export const ConfigurationPanel = () => {
         facebookPixelId: settings.facebookPixelId,
       };
 
+      // Save to database
       const { data, error } = await supabase.functions.invoke('shop-config', {
         method: 'POST',
         headers: { 'x-shop-domain': shop },
@@ -154,11 +155,25 @@ export const ConfigurationPanel = () => {
       if (error) throw error;
 
       if (data?.success) {
+        // Generate local settings file for faster cart loading
+        const { data: settingsData, error: settingsError } = await supabase.functions.invoke('cart-settings-generator', {
+          method: 'POST',
+          headers: { 'x-shop-domain': shop },
+          body: { settings: payload }
+        });
+
+        if (settingsError) {
+          console.warn('Failed to generate settings file:', settingsError);
+        }
+
         // Clear draft since persisted
         try { localStorage.setItem('scd_settings_draft', JSON.stringify(payload)); } catch {}
         // Notify preview
         window.dispatchEvent(new CustomEvent('shop-config:updated', { detail: payload }));
-        toast({ title: 'Settings saved!', description: 'Your cart drawer configuration has been updated.' });
+        toast({ 
+          title: 'Settings saved!', 
+          description: 'Your cart drawer configuration has been updated and optimized for fast loading.' 
+        });
       } else {
         throw new Error(data?.error || 'Failed to save settings');
       }
