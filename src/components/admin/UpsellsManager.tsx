@@ -27,6 +27,21 @@ interface ProductSearchResult {
   image: string | null;
 }
 
+interface ShopifyProduct {
+  id: string;
+  title: string;
+  handle: string;
+  variants: Array<{
+    id: string;
+    price: string;
+    title?: string;
+  }>;
+  images: Array<{
+    src: string;
+    alt?: string;
+  }>;
+}
+
 export const UpsellsManager = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -34,9 +49,13 @@ export const UpsellsManager = () => {
   const [searchQueries, setSearchQueries] = useState<string[]>([]);
   const [searchResults, setSearchResults] = useState<Record<number, ProductSearchResult[]>>({});
   const [searchLoadingIndex, setSearchLoadingIndex] = useState<number | null>(null);
+  const [allProducts, setAllProducts] = useState<ProductSearchResult[]>([]);
+  const [showAllProducts, setShowAllProducts] = useState<Record<number, boolean>>({});
+  const [loadingAllProducts, setLoadingAllProducts] = useState(false);
 
   useEffect(() => {
     loadUpsells();
+    loadAllProducts();
   }, []);
 
   const loadUpsells = async () => {
@@ -113,13 +132,56 @@ export const UpsellsManager = () => {
     }
   };
 
+  const loadAllProducts = async () => {
+    try {
+      setLoadingAllProducts(true);
+      const { getShopDomain } = await import('@/lib/shop');
+      const shop = getShopDomain();
+      
+      // Use popular search terms to get a good variety of products
+      const searchTerms = ['a', 'e', 'i', 'o', 'u']; // Common letters to get diverse results
+      const allResults: ProductSearchResult[] = [];
+      
+      for (const term of searchTerms) {
+        const { data, error } = await supabase.functions.invoke('products-proxy', {
+          headers: { 'x-shop-domain': shop },
+          body: { action: 'search', q: term }
+        });
+        
+        if (!error && data?.products) {
+          allResults.push(...data.products);
+        }
+      }
+      
+      // Remove duplicates and limit to 50 products
+      const uniqueProducts = Array.from(
+        new Map(allResults.map(p => [p.id, p])).values()
+      ).slice(0, 50);
+      
+      setAllProducts(uniqueProducts);
+    } catch (error) {
+      console.error('Failed to load all products:', error);
+    } finally {
+      setLoadingAllProducts(false);
+    }
+  };
+
   const selectProduct = (index: number, p: ProductSearchResult) => {
     updateUpsellProduct(index, 'product_id', p.id);
     updateUpsellProduct(index, 'product_title', p.title);
     updateUpsellProduct(index, 'product_handle', p.handle);
     updateUpsellProduct(index, 'product_price', p.price);
     updateUpsellProduct(index, 'product_image_url', p.image || '');
+    
+    // Clear search results for this index
+    setSearchResults(prev => ({ ...prev, [index]: [] }));
+    setShowAllProducts(prev => ({ ...prev, [index]: false }));
+    
     toast({ title: 'Product selected', description: p.title });
+  };
+
+  const toggleShowAllProducts = (index: number) => {
+    setShowAllProducts(prev => ({ ...prev, [index]: !prev[index] }));
   };
 
   const handleSave = async () => {
@@ -190,9 +252,9 @@ export const UpsellsManager = () => {
               </div>
 
               {/* Product search */}
-              <div className="grid md:grid-cols-3 gap-4 items-end">
+              <div className="grid md:grid-cols-4 gap-4 items-end">
                 <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor={`search-${index}`}>Search product</Label>
+                  <Label htmlFor={`search-${index}`}>Search or browse products</Label>
                   <div className="flex gap-2">
                     <Input
                       id={`search-${index}`}
@@ -200,11 +262,25 @@ export const UpsellsManager = () => {
                       onChange={(e) => setSearchQueries(prev => prev.map((q, i) => i === index ? e.target.value : (q || '')))}
                       placeholder="Type product name..."
                     />
-                    <Button onClick={() => searchProducts(index)} disabled={searchLoadingIndex === index}>
+                    <Button onClick={() => searchProducts(index)} disabled={searchLoadingIndex === index} variant="outline" size="sm">
                       <Search className="w-4 h-4 mr-2" />
                       {searchLoadingIndex === index ? 'Searching...' : 'Search'}
                     </Button>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Browse all products</Label>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => toggleShowAllProducts(index)}
+                    disabled={loadingAllProducts}
+                    className="w-full"
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    {showAllProducts[index] ? 'Hide Products' : 'Browse All'}
+                  </Button>
                 </div>
 
                 <div className="space-y-2">
@@ -215,22 +291,59 @@ export const UpsellsManager = () => {
                 </div>
               </div>
 
-              {searchResults[index]?.length ? (
-                <div className="mt-4 grid md:grid-cols-2 gap-3">
-                  {searchResults[index].map((p) => (
-                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-md border">
-                      {p.image ? (
-                        <img src={p.image} alt={p.title} className="w-12 h-12 rounded object-cover" />
-                      ) : (
-                        <div className="w-12 h-12 rounded bg-muted" />
-                      )}
-                      <div className="flex-1">
-                        <div className="font-medium line-clamp-1">{p.title}</div>
-                        <div className="text-sm text-muted-foreground">{"$" + p.price.toFixed(2)}</div>
+              {(searchResults[index]?.length || showAllProducts[index]) ? (
+                <div className="mt-4">
+                  {searchResults[index]?.length > 0 && (
+                    <div className="mb-4">
+                      <h5 className="text-sm font-medium mb-2">Search Results:</h5>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {searchResults[index].map((p) => (
+                          <div key={p.id} className="flex items-center gap-3 p-3 rounded-md border">
+                            {p.image ? (
+                              <img src={p.image} alt={p.title} className="w-12 h-12 rounded object-cover" />
+                            ) : (
+                              <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
+                                <ShoppingCart className="w-6 h-6 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium line-clamp-1">{p.title}</div>
+                              <div className="text-sm text-muted-foreground">${p.price.toFixed(2)}</div>
+                            </div>
+                            <Button size="sm" variant="outline" onClick={() => selectProduct(index, p)}>Select</Button>
+                          </div>
+                        ))}
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => selectProduct(index, p)}>Select</Button>
                     </div>
-                  ))}
+                  )}
+                  
+                  {showAllProducts[index] && (
+                    <div>
+                      <h5 className="text-sm font-medium mb-2">All Products ({allProducts.length}):</h5>
+                      <div className="max-h-60 overflow-y-auto">
+                        <div className="grid md:grid-cols-2 gap-2">
+                          {allProducts.map((p) => (
+                            <div key={p.id} className="flex items-center gap-3 p-2 rounded-md border hover:bg-muted/50 transition-colors">
+                              {p.image ? (
+                                <img src={p.image} alt={p.title} className="w-10 h-10 rounded object-cover" />
+                              ) : (
+                                <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                                  <ShoppingCart className="w-5 h-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-sm line-clamp-1">{p.title}</div>
+                                <div className="text-xs text-muted-foreground">${p.price.toFixed(2)}</div>
+                              </div>
+                              <Button size="sm" variant="ghost" onClick={() => selectProduct(index, p)}>
+                                Select
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : null}
 

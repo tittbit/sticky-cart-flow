@@ -164,6 +164,9 @@ export const ConfigurationPanel = () => {
 
         if (settingsError) {
           console.warn('Failed to generate settings file:', settingsError);
+          toast({ title: 'Settings saved with warning', description: 'Local cache generation failed, but database updated successfully.', variant: 'default' });
+        } else {
+          console.log('[Config] Settings file generated successfully:', settingsData?.message);
         }
 
         // Clear draft since persisted

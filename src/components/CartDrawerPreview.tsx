@@ -6,6 +6,15 @@ import { UnifiedCartDrawer } from "./cart/UnifiedCartDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+// Extend window interface for cart settings
+declare global {
+  interface Window {
+    STICKY_CART_SETTINGS?: any;
+    STICKY_CART_UPSELLS?: any[];
+    STICKY_CART_ADDONS?: any[];
+  }
+}
+
 export const CartDrawerPreview = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isMobileView, setIsMobileView] = useState(false);
@@ -62,6 +71,34 @@ export const CartDrawerPreview = () => {
       const { getShopDomain } = await import('@/lib/shop');
       const shopDomain = getShopDomain();
       setShop(shopDomain);
+      
+      // Try to load from local settings file first (faster)
+      try {
+        const settingsResponse = await fetch(`https://mjfzxmpscndznuaeoxft.supabase.co/functions/v1/cart-settings-generator`, {
+          method: 'GET',
+          headers: { 
+            'x-shop-domain': shopDomain,
+            'authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZnp4bXBzY25kem51YWVveGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDY2NzQsImV4cCI6MjA3MzI4MjY3NH0.xB_mlFv8uai35Vpil4yVsu1QqXyaa4IY9rHiYzbftAg'}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qZnp4bXBzY25kem51YWVveGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc3MDY2NzQsImV4cCI6MjA3MzI4MjY3NH0.xB_mlFv8uai35Vpil4yVsu1QqXyaa4IY9rHiYzbftAg'
+          }
+        });
+        
+        if (settingsResponse.ok) {
+          const settingsJS = await settingsResponse.text();
+          // Execute the JS to load settings into window globals
+          eval(settingsJS);
+          
+          if (window.STICKY_CART_SETTINGS) {
+            setSettings(window.STICKY_CART_SETTINGS);
+            console.log('[Preview] Loaded settings from local file');
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('[Preview] Failed to load local settings, falling back to database:', error);
+      }
+
+      // Fallback to database if local file fails
       const { data } = await supabase.functions.invoke('shop-config', {
         method: 'GET',
         headers: { 'x-shop-domain': shopDomain }
@@ -69,6 +106,7 @@ export const CartDrawerPreview = () => {
 
       if (data?.success) {
         setSettings(data.settings);
+        console.log('[Preview] Loaded settings from database (fallback)');
       }
     } catch (error) {
       console.error('Failed to load configuration:', error);
