@@ -1,5 +1,14 @@
 project_id = "mjfzxmpscndznuaeoxft"
 
+[functions.app-proxy]
+verify_jwt = false
+
+[functions.cart-settings-generator]
+verify_jwt = false
+
+[functions.cart-settings-publisher]
+verify_jwt = false
+
 [functions.shop-config]
 verify_jwt = false
 

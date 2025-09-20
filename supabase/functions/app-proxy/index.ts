@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Settings file endpoint - serves local JS settings for fast cart loading
+    // Settings file endpoint - serves JS settings directly from storage
     if (url.pathname.endsWith('/settings')) {
       const shopDomain = url.searchParams.get('shop') || req.headers.get('x-shop-domain');
       
@@ -46,21 +46,19 @@ Deno.serve(async (req) => {
       }
 
       try {
-        // Fetch settings from the cart-settings-generator
-        const supabaseUrl = Deno.env.get('SUPABASE_URL');
-        const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-        
-        const settingsResponse = await fetch(`${supabaseUrl}/functions/v1/cart-settings-generator`, {
-          method: 'GET',
-          headers: {
-            'x-shop-domain': shopDomain,
-            'authorization': `Bearer ${anonKey}`,
-            'apikey': anonKey
-          }
-        });
+        // Try to fetch from storage first
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
 
-        if (settingsResponse.ok) {
-          const settingsJS = await settingsResponse.text();
+        const fileName = `${shopDomain}/settings.js`;
+        const { data, error } = await supabase.storage
+          .from('cart-settings')
+          .download(fileName);
+
+        if (!error && data) {
+          const settingsJS = await data.text();
           return new Response(settingsJS, {
             headers: {
               ...corsHeaders,
@@ -69,8 +67,10 @@ Deno.serve(async (req) => {
             }
           });
         }
+
+        console.log(`Settings file not found for ${shopDomain}, using fallback`);
       } catch (error) {
-        console.error('Failed to fetch settings:', error);
+        console.error('Failed to fetch settings from storage:', error);
       }
 
       // Fallback default settings

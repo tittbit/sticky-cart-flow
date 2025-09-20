@@ -121,7 +121,7 @@ export const ConfigurationPanel = () => {
       const { getShopDomain } = await import('@/lib/shop');
       const shop = getShopDomain();
 
-      // Map panel state -> API expected keys
+      // Map panel state -> API expected keys for settings file
       const payload = {
         cartDrawerEnabled: settings.cartDrawerEnabled,
         drawerPosition: settings.drawerPosition,
@@ -145,40 +145,33 @@ export const ConfigurationPanel = () => {
         facebookPixelId: settings.facebookPixelId,
       };
 
-      // Save to database
-      const { data, error } = await supabase.functions.invoke('shop-config', {
+      // Publish settings file directly to storage (no database)
+      const { data: publishData, error: publishError } = await supabase.functions.invoke('cart-settings-publisher', {
         method: 'POST',
         headers: { 'x-shop-domain': shop },
         body: { settings: payload }
       });
 
-      if (error) throw error;
+      if (publishError) {
+        console.error('Failed to publish settings file:', publishError);
+        throw publishError;
+      }
 
-      if (data?.success) {
-        // Generate local settings file for faster cart loading
-        const { data: settingsData, error: settingsError } = await supabase.functions.invoke('cart-settings-generator', {
-          method: 'POST',
-          headers: { 'x-shop-domain': shop },
-          body: { settings: payload }
-        });
-
-        if (settingsError) {
-          console.warn('Failed to generate settings file:', settingsError);
-          toast({ title: 'Settings saved with warning', description: 'Local cache generation failed, but database updated successfully.', variant: 'default' });
-        } else {
-          console.log('[Config] Settings file generated successfully:', settingsData?.message);
-        }
-
-        // Clear draft since persisted
+      if (publishData?.success) {
+        console.log('[Config] Settings file published successfully:', publishData?.message);
+        
+        // Clear draft since persisted to file
         try { localStorage.setItem('scd_settings_draft', JSON.stringify(payload)); } catch {}
+        
         // Notify preview
         window.dispatchEvent(new CustomEvent('shop-config:updated', { detail: payload }));
+        
         toast({ 
           title: 'Settings saved!', 
-          description: 'Your cart drawer configuration has been updated and optimized for fast loading.' 
+          description: 'Your cart drawer configuration has been published and optimized for fast loading.' 
         });
       } else {
-        throw new Error(data?.error || 'Failed to save settings');
+        throw new Error(publishData?.error || 'Failed to publish settings');
       }
     } catch (error) {
       console.error('Error saving settings:', error);
