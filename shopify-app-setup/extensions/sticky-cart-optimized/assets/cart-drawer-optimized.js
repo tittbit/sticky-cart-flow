@@ -92,33 +92,80 @@ class OptimizedStickyCartDrawer {
         return;
       }
 
-      // Load settings file from app proxy
-      const settingsUrl = `/tools/cart-drawer/settings?shop=${this.shopDomain}&t=${Math.floor(Date.now() / 300000)}`;
-      
-      const script = document.createElement('script');
-      script.src = settingsUrl;
-      
-      await new Promise((resolve) => {
-        script.onload = () => {
+      // Prefer loading JSON directly from Supabase Storage (no script execution needed)
+      const SUPABASE_URL = 'https://mjfzxmpscndznuaeoxft.supabase.co';
+      const storageBase = `${SUPABASE_URL}/storage/v1/object/public/cart-settings/${this.shopDomain}`;
+      const cacheBust = Math.floor(Date.now() / 300000); // 5-min cache window
+
+      try {
+        const jsonRes = await fetch(`${storageBase}/settings.json?t=${cacheBust}`, { cache: 'no-store' });
+        if (jsonRes.ok) {
+          const payload = await jsonRes.json();
+          this.settings = payload.settings || this.getDefaultSettings();
+          this.upsells = payload.upsells || [];
+          this.addons = payload.addons || [];
+          if (payload.settings) {
+            // Mirror globals for any code expecting them
+            window.STICKY_CART_SETTINGS = this.settings;
+            window.STICKY_CART_UPSELLS = this.upsells;
+            window.STICKY_CART_ADDONS = this.addons;
+            window.STICKY_CART_SETTINGS_LOADED = Date.now();
+          }
+          console.log('[Sticky Cart] Local settings loaded from storage JSON');
+          return;
+        }
+      } catch (e) {
+        console.warn('[Sticky Cart] Failed to load storage JSON, will try JS/proxy next', e);
+      }
+
+      // Fallback 1: Load settings JS directly from Storage (may be blocked by CSP)
+      const storageJsUrl = `${storageBase}/settings.js?t=${cacheBust}`;
+      const storageScript = document.createElement('script');
+      storageScript.src = storageJsUrl;
+
+      const tryProxyAfterStorage = () => new Promise((resolve) => {
+        const proxyUrl = `/tools/cart-drawer/settings?shop=${this.shopDomain}&t=${cacheBust}`;
+        const proxyScript = document.createElement('script');
+        proxyScript.src = proxyUrl;
+        proxyScript.onload = () => {
           this.settings = window.STICKY_CART_SETTINGS || this.getDefaultSettings();
           this.upsells = window.STICKY_CART_UPSELLS || [];
           this.addons = window.STICKY_CART_ADDONS || [];
-          console.log('[Sticky Cart] Local settings loaded from file');
+          console.log('[Sticky Cart] Local settings loaded from app proxy');
           resolve(true);
         };
-        
-        script.onerror = () => {
-          console.warn('[Sticky Cart] Settings file load failed, using defaults');
+        proxyScript.onerror = () => {
+          console.warn('[Sticky Cart] App proxy settings load failed, using defaults');
           this.settings = this.getDefaultSettings();
           resolve(true);
         };
-        
-        document.head.appendChild(script);
-        
-        // Fallback timeout
+        document.head.appendChild(proxyScript);
         setTimeout(() => {
           if (!this.settings) {
             this.settings = this.getDefaultSettings();
+            resolve(true);
+          }
+        }, 1500);
+      });
+
+      await new Promise((resolve) => {
+        storageScript.onload = () => {
+          this.settings = window.STICKY_CART_SETTINGS || this.getDefaultSettings();
+          this.upsells = window.STICKY_CART_UPSELLS || [];
+          this.addons = window.STICKY_CART_ADDONS || [];
+          console.log('[Sticky Cart] Local settings loaded from storage JS');
+          resolve(true);
+        };
+        storageScript.onerror = async () => {
+          console.warn('[Sticky Cart] Storage JS load failed, trying app proxy');
+          await tryProxyAfterStorage();
+          resolve(true);
+        };
+        document.head.appendChild(storageScript);
+        setTimeout(async () => {
+          if (!this.settings) {
+            console.warn('[Sticky Cart] Storage JS timed out, trying app proxy');
+            await tryProxyAfterStorage();
             resolve(true);
           }
         }, 1500);

@@ -87,21 +87,43 @@ window.STICKY_CART_SETTINGS_LOADED = Date.now();
 console.log('[Sticky Cart] Settings loaded from local file:', window.STICKY_CART_SETTINGS);
       `;
 
-      // Upload to storage
+      // Upload to storage (JS and JSON)
       const fileName = `${shopDomain}/settings.js`;
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadJsError } = await supabase.storage
         .from('cart-settings')
         .upload(fileName, new Blob([settingsJS], { type: 'application/javascript' }), {
           upsert: true,
           contentType: 'application/javascript'
         });
 
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError);
+      if (uploadJsError) {
+        console.error('Storage upload error (JS):', uploadJsError);
         return new Response(
-          JSON.stringify({ success: false, error: 'Failed to upload settings file' }),
+          JSON.stringify({ success: false, error: 'Failed to upload settings JS file' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      // Also publish a JSON version for environments where executing scripts is restricted
+      const jsonFileName = `${shopDomain}/settings.json`;
+      const settingsJSON = JSON.stringify({
+        shop: shopDomain,
+        generatedAt: new Date().toISOString(),
+        settings: normalizedSettings,
+        upsells: upsellsResult.data || [],
+        addons: addonsResult.data || []
+      }, null, 2);
+
+      const { error: uploadJsonError } = await supabase.storage
+        .from('cart-settings')
+        .upload(jsonFileName, new Blob([settingsJSON], { type: 'application/json' }), {
+          upsert: true,
+          contentType: 'application/json'
+        });
+
+      if (uploadJsonError) {
+        console.error('Storage upload error (JSON):', uploadJsonError);
+        // Do not fail the whole request if JSON fails; continue
       }
 
       console.log(`[Cart Settings Publisher] Published settings for ${shopDomain}`);
@@ -110,8 +132,9 @@ console.log('[Sticky Cart] Settings loaded from local file:', window.STICKY_CART
         JSON.stringify({ 
           success: true, 
           fileName,
+          jsonFileName,
           timestamp: new Date().toISOString(),
-          message: 'Settings file published successfully'
+          message: 'Settings files published successfully'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
