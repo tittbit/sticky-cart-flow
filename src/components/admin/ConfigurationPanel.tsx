@@ -53,7 +53,7 @@ export const ConfigurationPanel = () => {
         setSettings(prev => ({ ...prev, ...parsed }));
       }
     } catch {}
-    // Then fetch from DB and merge
+    // Then fetch from the published settings file (no database)
     loadSettings();
   }, []);
 
@@ -65,44 +65,60 @@ export const ConfigurationPanel = () => {
       // Persist for other pages
       localStorage.setItem('shop_domain', shop);
 
-      const { data } = await supabase.functions.invoke('shop-config', {
-        method: 'GET',
-        headers: { 'x-shop-domain': shop }
-      });
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const storageUrl = `${supabaseUrl}/storage/v1/object/public/cart-settings/${shop}/settings.js?t=${Math.floor(Date.now() / 300000)}`;
 
-      if (data?.success && data.settings) {
-        const s = data.settings;
-        // Map normalized keys -> panel state keys for backward compatibility
-        const mapped = {
-          cartDrawerEnabled: s.cartDrawerEnabled ?? s.enabled ?? true,
-          drawerPosition: s.drawerPosition || 'right',
-          themeColor: s.themeColor || '#3B82F6',
+      // Load the JS settings file and read globals it sets
+      await new Promise<void>((resolve) => {
+        const script = document.createElement('script');
+        script.src = storageUrl;
+        script.async = true;
+        script.onload = () => {
+          try {
+            const s: any = (window as any).STICKY_CART_SETTINGS;
+            if (s) {
+              const mapped = {
+                cartDrawerEnabled: s.cartDrawerEnabled ?? s.enabled ?? true,
+                drawerPosition: s.drawerPosition || 'right',
+                themeColor: s.themeColor || '#3B82F6',
 
-          stickyButtonEnabled: s.stickyButtonEnabled ?? s.stickyButton?.enabled ?? true,
-          buttonText: s.stickyButtonText ?? s.buttonText ?? s.stickyButton?.text ?? 'Cart',
-          buttonPosition: s.stickyButtonPosition ?? s.buttonPosition ?? s.stickyButton?.position ?? 'bottom-right',
+                stickyButtonEnabled: s.stickyButtonEnabled ?? s.stickyButton?.enabled ?? true,
+                buttonText: s.stickyButtonText ?? s.buttonText ?? s.stickyButton?.text ?? 'Cart',
+                buttonPosition: s.stickyButtonPosition ?? s.buttonPosition ?? s.stickyButton?.position ?? 'bottom-right',
 
-          upsellsEnabled: s.upsellsEnabled ?? s.upsells?.enabled ?? false,
-          addOnsEnabled: s.addOnsEnabled ?? s.addOns?.enabled ?? false,
-          freeShippingBarEnabled: s.freeShippingBarEnabled ?? s.freeShippingEnabled ?? s.freeShipping?.enabled ?? false,
-          discountPromoEnabled: s.discountPromoEnabled ?? s.discountBarEnabled ?? s.discountBar?.enabled ?? false,
+                upsellsEnabled: s.upsellsEnabled ?? s.upsells?.enabled ?? false,
+                addOnsEnabled: s.addOnsEnabled ?? s.addOns?.enabled ?? false,
+                freeShippingBarEnabled: s.freeShippingBarEnabled ?? s.freeShippingEnabled ?? s.freeShipping?.enabled ?? false,
+                discountPromoEnabled: s.discountPromoEnabled ?? s.discountBarEnabled ?? s.discountBar?.enabled ?? false,
 
-          freeShippingThreshold: Number(s.freeShippingThreshold ?? s.freeShipping?.threshold ?? 75),
-          discountCode: s.discountCode || '',
-          announcementText: s.announcementText || '',
+                freeShippingThreshold: Number(s.freeShippingThreshold ?? s.freeShipping?.threshold ?? 75),
+                discountCode: s.discountCode || '',
+                announcementText: s.announcementText || '',
 
-          googleAnalyticsId: s.googleAnalyticsId || '',
-          facebookPixelId: s.facebookPixelId || ''
+                googleAnalyticsId: s.googleAnalyticsId || '',
+                facebookPixelId: s.facebookPixelId || ''
+              } as any;
+              setSettings(prev => {
+                const merged = { ...prev, ...mapped } as any;
+                try { localStorage.setItem('scd_settings_draft', JSON.stringify(merged)); } catch {}
+                return merged;
+              });
+            }
+          } finally {
+            // Clean up the injected tag
+            script.remove();
+            resolve();
+          }
         };
-        setSettings(prev => {
-          const merged = { ...prev, ...mapped } as any;
-          try { localStorage.setItem('scd_settings_draft', JSON.stringify(merged)); } catch {}
-          return merged;
-        });
-      }
+        script.onerror = () => {
+          console.warn('[Config] Failed to load published settings file, keeping current form values');
+          script.remove();
+          resolve();
+        };
+        document.head.appendChild(script);
+      });
     } catch (error) {
       console.error('Error loading settings:', error);
-      toast({ title: 'Error', description: 'Failed to load settings.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
