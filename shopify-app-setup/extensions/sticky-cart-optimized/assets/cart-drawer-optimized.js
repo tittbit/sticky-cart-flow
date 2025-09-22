@@ -288,9 +288,9 @@ class OptimizedStickyCartDrawer {
   createStickyButton() {
     if (!this.settings?.stickyButton?.enabled) return;
     
-    // Remove existing button
-    const existing = document.querySelector('.sticky-cart-button[data-cart-source="optimized"]');
-    if (existing) existing.remove();
+    // Remove existing buttons (both optimized and react versions)
+    const existingButtons = document.querySelectorAll('.sticky-cart-button');
+    existingButtons.forEach(btn => btn.remove());
 
     const button = document.createElement('button');
     button.className = 'sticky-cart-button';

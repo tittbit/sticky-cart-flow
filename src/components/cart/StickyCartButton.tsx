@@ -86,8 +86,13 @@ export const StickyCartButton = ({
     }
   };
 
-  // Don't render if disabled or loading
+  // Don't render if disabled, loading, or optimized version is active
   if (!enabled || loading || !settings?.stickyButtonEnabled) {
+    return null;
+  }
+
+  // Don't render React button if optimized JavaScript version is already active
+  if (document.querySelector('.sticky-cart-button[data-cart-source="optimized"]')) {
     return null;
   }
 
