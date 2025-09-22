@@ -101,17 +101,15 @@ class OptimizedStickyCartDrawer {
         const jsonRes = await fetch(`${storageBase}/settings.json?t=${cacheBust}`, { cache: 'no-store' });
         if (jsonRes.ok) {
           const payload = await jsonRes.json();
-          this.settings = payload.settings || this.getDefaultSettings();
+          this.settings = payload.settings || payload || this.getDefaultSettings();
           this.upsells = payload.upsells || [];
           this.addons = payload.addons || [];
-          if (payload.settings) {
-            // Mirror globals for any code expecting them
-            window.STICKY_CART_SETTINGS = this.settings;
-            window.STICKY_CART_UPSELLS = this.upsells;
-            window.STICKY_CART_ADDONS = this.addons;
-            window.STICKY_CART_SETTINGS_LOADED = Date.now();
-          }
-          console.log('[Sticky Cart] Local settings loaded from storage JSON');
+          // Mirror globals for any code expecting them
+          window.STICKY_CART_SETTINGS = this.settings;
+          window.STICKY_CART_UPSELLS = this.upsells;
+          window.STICKY_CART_ADDONS = this.addons;
+          window.STICKY_CART_SETTINGS_LOADED = Date.now();
+          console.log('[Sticky Cart] Local settings loaded from storage JSON:', this.settings);
           return;
         }
       } catch (e) {
@@ -298,7 +296,7 @@ class OptimizedStickyCartDrawer {
     button.className = 'sticky-cart-button';
     button.setAttribute('data-cart-source', 'optimized');
     
-    const position = this.settings.stickyButton.position || 'bottom-right';
+    const position = this.settings?.stickyButton?.position || this.settings?.stickyButtonPosition || 'bottom-right';
     const positionStyles = {
       'bottom-right': { bottom: '20px', right: '20px' },
       'bottom-left': { bottom: '20px', left: '20px' },
@@ -326,9 +324,10 @@ class OptimizedStickyCartDrawer {
     `;
 
     const itemCount = this.cartData?.item_count || 0;
+    const buttonText = this.settings?.stickyButton?.text || this.settings?.stickyButtonText || 'Cart';
     button.innerHTML = `
       <span>🛒</span>
-      <span>${this.settings.stickyButton.text || 'Cart'}</span>
+      <span>${buttonText}</span>
       ${itemCount > 0 ? `<span style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 10px; font-size: 12px;">${itemCount}</span>` : ''}
     `;
 
@@ -353,10 +352,12 @@ class OptimizedStickyCartDrawer {
           background: rgba(0,0,0,0.5); 
         }
         .optimized-cart-panel { 
-          position: absolute; top: 0; right: 0; width: 400px; max-width: 90vw; height: 100%; 
-          background: white; transform: translateX(100%); transition: transform 0.3s ease;
+          position: absolute; top: 0; width: 400px; max-width: 90vw; height: 100%; 
+          background: white; transition: transform 0.3s ease;
           display: flex; flex-direction: column; box-shadow: -4px 0 16px rgba(0,0,0,0.15);
         }
+        .optimized-cart-panel[data-position="right"] { right: 0; transform: translateX(100%); }
+        .optimized-cart-panel[data-position="left"] { left: 0; transform: translateX(-100%); }
         .optimized-cart-drawer.open .optimized-cart-panel { transform: translateX(0); }
         .cart-item { display: flex; align-items: center; gap: 12px; padding: 16px; border-bottom: 1px solid #eee; }
         .cart-item img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; }
@@ -369,9 +370,10 @@ class OptimizedStickyCartDrawer {
 
     const drawer = document.createElement('div');
     drawer.className = 'optimized-cart-drawer';
+    const drawerPosition = this.settings?.drawerPosition || 'right';
     drawer.innerHTML = `
       <div class="optimized-cart-overlay"></div>
-      <div class="optimized-cart-panel">
+      <div class="optimized-cart-panel" data-position="${drawerPosition}">
         <div style="padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
           <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Your Cart</h2>
           <button class="close-btn" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
@@ -383,7 +385,7 @@ class OptimizedStickyCartDrawer {
         <div class="cart-footer" style="padding: 20px; border-top: 1px solid #eee; background: white;">
           <div class="cart-total" style="margin-bottom: 15px; text-align: right;"></div>
           <button class="checkout-btn" style="width: 100%; padding: 15px; background: ${this.settings?.themeColor || '#3B82F6'}; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
-            ${this.isPreview ? 'Checkout (Preview)' : 'Proceed to Checkout'}
+            Proceed to Checkout
           </button>
         </div>
       </div>
@@ -396,9 +398,7 @@ class OptimizedStickyCartDrawer {
     drawer.querySelector('.close-btn').addEventListener('click', () => this.closeDrawer());
     drawer.querySelector('.optimized-cart-overlay').addEventListener('click', () => this.closeDrawer());
     drawer.querySelector('.checkout-btn').addEventListener('click', () => {
-      if (!this.isPreview) {
-        window.location.href = '/checkout';
-      }
+      window.location.href = '/checkout';
     });
   }
 
@@ -430,6 +430,8 @@ class OptimizedStickyCartDrawer {
       closeDrawer: () => this.closeDrawer(),
       toggleDrawer: () => this.toggleDrawer(),
       updateItemCount: (count) => this.updateItemCount(count),
+      updateQuantity: (itemId, newQuantity) => this.updateQuantity(itemId, newQuantity),
+      removeItem: (itemId) => this.removeItem(itemId),
       isOptimized: true
     };
   }
@@ -502,6 +504,15 @@ class OptimizedStickyCartDrawer {
             <h4 class="cart-item-title">${item.title}</h4>
             ${item.variant_title ? `<p style="font-size: 12px; color: #666; margin: 0;">${item.variant_title}</p>` : ''}
             <p class="cart-item-price">${this.formatCurrency(item.price / 100)} × ${item.quantity}</p>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+              <button onclick="window.stickyCartDrawer?.updateQuantity?.(${item.id}, ${item.quantity - 1})" 
+                      style="width: 28px; height: 28px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">−</button>
+              <span style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; min-width: 40px; text-align: center;">${item.quantity}</span>
+              <button onclick="window.stickyCartDrawer?.updateQuantity?.(${item.id}, ${item.quantity + 1})" 
+                      style="width: 28px; height: 28px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">+</button>
+              <button onclick="window.stickyCartDrawer?.removeItem?.(${item.id})" 
+                      style="margin-left: auto; padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Remove</button>
+            </div>
           </div>
         </div>
       `).join('');
@@ -596,6 +607,43 @@ class OptimizedStickyCartDrawer {
       } else {
         countSpan.style.display = 'none';
       }
+    }
+  }
+
+  async updateQuantity(itemId, newQuantity) {
+    if (newQuantity <= 0) {
+      await this.removeItem(itemId);
+      return;
+    }
+
+    try {
+      const response = await fetch('/cart/change.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: itemId, quantity: newQuantity })
+      });
+      
+      if (response.ok) {
+        await this.loadCartData();
+      }
+    } catch (error) {
+      console.error('Failed to update item quantity:', error);
+    }
+  }
+
+  async removeItem(itemId) {
+    try {
+      const response = await fetch('/cart/change.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: itemId, quantity: 0 })
+      });
+      
+      if (response.ok) {
+        await this.loadCartData();
+      }
+    } catch (error) {
+      console.error('Failed to remove item:', error);
     }
   }
 }

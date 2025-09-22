@@ -22,10 +22,6 @@ interface UnifiedCartDrawerProps {
   themeColor?: string;
   currency?: string;
   shopDomain?: string;
-  isPreview?: boolean;
-  stickyButtonEnabled?: boolean;
-  stickyButtonText?: string;
-  stickyButtonPosition?: string;
 }
 
 export const UnifiedCartDrawer = ({
@@ -36,57 +32,15 @@ export const UnifiedCartDrawer = ({
   position = "right",
   themeColor = "#3B82F6",
   currency = "USD",
-  shopDomain,
-  isPreview = false,
-  stickyButtonEnabled = true,
-  stickyButtonText = "Cart",
-  stickyButtonPosition = "bottom-right"
+  shopDomain
 }: UnifiedCartDrawerProps) => {
   const [settings, setSettings] = useState<any>(null);
   const [upsells, setUpsells] = useState<any[]>([]);
   const [addons, setAddons] = useState<any[]>([]);
 
   useEffect(() => {
-    if (isPreview) {
-      // For preview, use props directly
-      setSettings({
-        enabled: true,
-        cartDrawerEnabled: true,
-        drawerPosition: position,
-        themeColor,
-        stickyButton: {
-          enabled: stickyButtonEnabled,
-          text: stickyButtonText,
-          position: stickyButtonPosition
-        },
-        freeShipping: { enabled: true, threshold: 75 },
-        upsells: { enabled: true },
-        addOns: { enabled: true },
-        discountBar: { enabled: true, code: 'SAVE10' },
-        currency
-      });
-      // Mock upsells for preview
-      setUpsells([
-        {
-          id: 1,
-          product_title: "Premium Case",
-          product_price: 25.99,
-          product_image_url: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=100&h=100&fit=crop"
-        }
-      ]);
-      setAddons([
-        {
-          id: 1,
-          product_title: "Extended Warranty",
-          product_price: 19.99,
-          description: "2-year protection plan"
-        }
-      ]);
-    } else {
-      // For production, load from local settings file
-      loadLocalSettings();
-    }
-  }, [isPreview, position, themeColor, currency]);
+    loadLocalSettings();
+  }, [position, themeColor, currency]);
 
   const loadLocalSettings = () => {
     // Check if settings are already loaded in window
@@ -345,12 +299,10 @@ export const UnifiedCartDrawer = ({
               className="w-full h-12 text-base font-semibold text-white"
               style={{ backgroundColor: actualThemeColor }}
               onClick={() => {
-                if (!isPreview) {
-                  window.location.href = '/checkout';
-                }
+                window.location.href = '/checkout';
               }}
             >
-              {isPreview ? 'Checkout (Preview)' : 'Proceed to Checkout'}
+              Proceed to Checkout
             </Button>
             
             <Button 

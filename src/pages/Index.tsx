@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AdminDashboard } from "@/components/AdminDashboard";
-import { CartDrawerPreview } from "@/components/CartDrawerPreview";
+import { IntegrationStatus } from "@/components/IntegrationStatus";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
@@ -37,9 +37,9 @@ const Index = () => {
               <span>⚙️</span>
               <span>Dashboard</span>
             </TabsTrigger>
-            <TabsTrigger value="preview" className="flex items-center space-x-2">
-              <span>👁️</span>
-              <span>Preview</span>
+            <TabsTrigger value="status" className="flex items-center space-x-2">
+              <span>📊</span>
+              <span>Integration Status</span>
             </TabsTrigger>
           </TabsList>
 
@@ -47,8 +47,8 @@ const Index = () => {
             <AdminDashboard />
           </TabsContent>
 
-          <TabsContent value="preview" className="space-y-6">
-            <CartDrawerPreview />
+          <TabsContent value="status" className="space-y-6">
+            <IntegrationStatus />
           </TabsContent>
         </Tabs>
       </main>
