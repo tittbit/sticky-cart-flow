@@ -1,10 +1,36 @@
 import { useState } from "react";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { IntegrationStatus } from "@/components/IntegrationStatus";
+import { StickyCartButton } from "@/components/cart/StickyCartButton";
+import { UnifiedCartDrawer } from "@/components/cart/UnifiedCartDrawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  
+  // Mock cart data for React implementation
+  const mockCartItems = [
+    {
+      id: 1,
+      title: 'Premium Wireless Headphones',
+      variant: 'Black',
+      price: 129.99,
+      quantity: 1,
+      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'
+    },
+    {
+      id: 2,
+      title: 'Smartphone Case',
+      variant: 'Clear',
+      price: 24.99,
+      quantity: 2,
+      image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=100&h=100&fit=crop'
+    }
+  ];
+  
+  const cartTotal = mockCartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const itemCount = mockCartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20">
@@ -52,6 +78,22 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* React Cart Components */}
+      <StickyCartButton 
+        itemCount={itemCount}
+        onClick={() => setIsCartOpen(true)}
+        shopDomain="demo-shop.myshopify.com"
+        enabled={true}
+      />
+      
+      <UnifiedCartDrawer 
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        items={mockCartItems}
+        total={cartTotal}
+        shopDomain="demo-shop.myshopify.com"
+      />
     </div>
   );
 };

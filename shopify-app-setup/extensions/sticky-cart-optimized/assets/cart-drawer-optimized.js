@@ -648,7 +648,9 @@ class OptimizedStickyCartDrawer {
   }
 }
 
-// Initialize when DOM is ready
+// Initialize when DOM is ready - DISABLED in favor of React components
+// Uncomment below lines to re-enable JavaScript cart drawer
+/*
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     new OptimizedStickyCartDrawer();
@@ -656,5 +658,6 @@ if (document.readyState === 'loading') {
 } else {
   new OptimizedStickyCartDrawer();
 }
+*/
 
 console.log('[Sticky Cart] Optimized script loaded');
