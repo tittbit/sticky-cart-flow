@@ -2,9 +2,21 @@ import { useState } from "react";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { IntegrationStatus } from "@/components/IntegrationStatus";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UnifiedCartDrawer } from "@/components/cart/UnifiedCartDrawer";
+import { StickyCartButton } from "@/components/cart/StickyCartButton";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [cartOpen, setCartOpen] = useState(false);
+  const [cartItems, setCartItems] = useState([
+    {
+      id: 1,
+      title: "Sample Product",
+      price: 29.99,
+      quantity: 2,
+      image: "/placeholder.svg"
+    }
+  ]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20">
@@ -52,6 +64,27 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Cart Components */}
+      <StickyCartButton 
+        itemCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}
+        totalPrice={cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)}
+        onClick={() => setCartOpen(true)}
+      />
+      
+      <UnifiedCartDrawer
+        isOpen={cartOpen}
+        onClose={() => setCartOpen(false)}
+        items={cartItems}
+        onUpdateQuantity={(id, quantity) => {
+          setCartItems(items => items.map(item => 
+            item.id === id ? { ...item, quantity } : item
+          ));
+        }}
+        onRemoveItem={(id) => {
+          setCartItems(items => items.filter(item => item.id !== id));
+        }}
+      />
     </div>
   );
 };
