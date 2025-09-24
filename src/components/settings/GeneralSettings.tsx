@@ -1,17 +1,11 @@
 import React from 'react';
-import { 
-  Card, 
-  FormLayout, 
-  TextField, 
-  Switch, 
-  Select, 
-  Stack, 
-  ColorPicker, 
-  hsbToHex,
-  hexToHsb,
-  RangeSlider,
-  Banner
-} from '@shopify/polaris';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSettings } from '@/contexts/SettingsContext';
 
 export const GeneralSettings: React.FC = () => {
@@ -60,14 +54,13 @@ export const GeneralSettings: React.FC = () => {
     { label: 'Shake', value: 'shake' },
   ];
 
-  const handleColorChange = (field: string, hsb: any) => {
-    const hex = hsbToHex(hsb);
+  const handleColorChange = (field: string, color: string) => {
     if (field.includes('.')) {
       const [section, property] = field.split('.');
       updateSettings({
         [section]: {
           ...settings[section as keyof typeof settings],
-          [property]: hex,
+          [property]: color,
         }
       } as any);
     }

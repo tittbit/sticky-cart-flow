@@ -1,7 +1,10 @@
 import React from 'react';
-import { Card, FormLayout, TextField, Switch, Stack, Button } from '@shopify/polaris';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { ProductResourcePicker } from './ProductResourcePicker';
-import { useSettings } from '@/contexts/SettingsContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useShopify } from '@/contexts/ShopifyContext';
 import { toast } from 'sonner';
@@ -115,11 +118,17 @@ export const UpsellSettings: React.FC = () => {
   };
 
   if (loading) {
-    return <Card sectioned><p>Loading upsell products...</p></Card>;
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p>Loading upsell products...</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <Stack vertical>
+    <div className="space-y-6">
       <ProductResourcePicker
         selectedProducts={upsellProducts}
         onSelectionChange={handleProductSelection}
@@ -129,43 +138,49 @@ export const UpsellSettings: React.FC = () => {
       />
 
       {upsellProducts.length > 0 && (
-        <Card title="Upsell Configuration" sectioned>
-          <Stack vertical>
+        <Card>
+          <CardHeader>
+            <CardTitle>Upsell Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
             {upsellProducts.map((product, index) => (
-              <Card key={product.id} sectioned>
-                <FormLayout>
-                  <FormLayout.Group>
-                    <TextField
-                      label="Product Title"
-                      value={product.title}
-                      onChange={(value) => updateUpsellProduct(index, { title: value })}
-                      autoComplete="off"
-                    />
-                    <TextField
-                      label="Price"
-                      value={product.price}
-                      onChange={(value) => updateUpsellProduct(index, { price: value })}
-                      type="number"
-                      prefix="$"
-                      autoComplete="off"
-                    />
-                  </FormLayout.Group>
+              <Card key={product.id}>
+                <CardContent className="p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Product Title</Label>
+                      <Input
+                        value={product.title}
+                        onChange={(e) => updateUpsellProduct(index, { title: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Price</Label>
+                      <Input
+                        type="number"
+                        value={product.price}
+                        onChange={(e) => updateUpsellProduct(index, { price: e.target.value })}
+                      />
+                    </div>
+                  </div>
                   
-                  <Switch
-                    label="Active"
-                    checked={product.isActive}
-                    onChange={(checked) => updateUpsellProduct(index, { isActive: checked })}
-                  />
-                </FormLayout>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={product.isActive}
+                      onCheckedChange={(checked) => updateUpsellProduct(index, { isActive: checked })}
+                    />
+                    <Label>Active</Label>
+                  </div>
+                </CardContent>
               </Card>
             ))}
             
-            <Button primary onClick={saveUpsellProducts}>
+            <Button onClick={saveUpsellProducts}>
               Save Upsell Products
             </Button>
-          </Stack>
+          </CardContent>
         </Card>
       )}
-    </Stack>
+    </div>
   );
 };

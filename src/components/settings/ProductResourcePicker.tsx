@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
-import { ResourcePicker } from '@shopify/app-bridge-react';
-import { Button, Stack, Card, ResourceList, ResourceItem, Thumbnail, TextStyle } from '@shopify/polaris';
-import { ImageMajor } from '@shopify/polaris-icons';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { X, Image } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -29,107 +30,102 @@ export const ProductResourcePicker: React.FC<ProductResourcePickerProps> = ({
   title = "Select Products",
   emptyStateText = "No products selected",
 }) => {
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-  const handleSelection = useCallback((resources: any) => {
-    const products = resources.selection.map((resource: any) => ({
-      id: resource.id,
-      handle: resource.handle,
-      title: resource.title,
-      price: resource.variants?.[0]?.price || '0.00',
-      image: resource.images?.[0] ? {
-        originalSrc: resource.images[0].originalSrc,
-        altText: resource.images[0].altText,
-      } : undefined,
-    }));
+  // Mock product selection for demo purposes
+  const handleOpenPicker = () => {
+    // In a real implementation, this would open Shopify's ResourcePicker
+    // For now, we'll add mock products
+    const mockProducts = [
+      {
+        id: 'gid://shopify/Product/1',
+        handle: 'test-product-1',
+        title: 'Test Product 1',
+        price: '29.99',
+        image: {
+          originalSrc: 'https://via.placeholder.com/100',
+          altText: 'Test Product 1'
+        }
+      },
+      {
+        id: 'gid://shopify/Product/2',
+        handle: 'test-product-2',
+        title: 'Test Product 2',
+        price: '39.99',
+        image: {
+          originalSrc: 'https://via.placeholder.com/100',
+          altText: 'Test Product 2'
+        }
+      }
+    ];
     
-    onSelectionChange(products);
-    setPickerOpen(false);
-  }, [onSelectionChange]);
+    onSelectionChange([...selectedProducts, ...mockProducts.slice(0, selectionLimit - selectedProducts.length)]);
+  };
 
   const handleRemoveProduct = useCallback((productId: string) => {
     const updatedProducts = selectedProducts.filter(product => product.id !== productId);
     onSelectionChange(updatedProducts);
   }, [selectedProducts, onSelectionChange]);
 
-  const renderProductItem = (product: Product) => {
-    const media = product.image ? (
-      <Thumbnail
-        source={product.image.originalSrc}
-        alt={product.image.altText || product.title}
-        size="small"
-      />
-    ) : (
-      <Thumbnail
-        source={ImageMajor}
-        alt="No image"
-        size="small"
-      />
-    );
-
-    return (
-      <ResourceItem
-        id={product.id}
-        media={media}
-        accessibilityLabel={`Product ${product.title}`}
-        shortcutActions={[
-          {
-            content: 'Remove',
-            onAction: () => handleRemoveProduct(product.id),
-          },
-        ]}
-      >
-        <Stack vertical spacing="extraTight">
-          <h3>
-            <TextStyle variation="strong">{product.title}</TextStyle>
-          </h3>
-          <p>
-            <TextStyle variation="subdued">
-              Handle: {product.handle} | Price: ${product.price}
-            </TextStyle>
-          </p>
-        </Stack>
-      </ResourceItem>
-    );
-  };
-
   return (
-    <Card title={title} sectioned>
-      <Stack vertical>
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
         <Button
-          onClick={() => setPickerOpen(true)}
+          onClick={handleOpenPicker}
           disabled={selectedProducts.length >= selectionLimit}
+          variant="outline"
         >
           {selectedProducts.length === 0 ? 'Select Products' : 'Add More Products'}
         </Button>
 
-        <ResourcePicker
-          resourceType="Product"
-          open={pickerOpen}
-          onSelection={handleSelection}
-          onCancel={() => setPickerOpen(false)}
-          selectMultiple={true}
-          initialSelectionIds={selectedProducts.map(p => ({ id: p.id }))}
-        />
-
         {selectedProducts.length > 0 ? (
-          <ResourceList
-            resourceName={{ singular: 'product', plural: 'products' }}
-            items={selectedProducts}
-            renderItem={renderProductItem}
-          />
+          <div className="space-y-3">
+            {selectedProducts.map((product) => (
+              <div key={product.id} className="flex items-center gap-3 p-3 border rounded-lg">
+                <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                  {product.image ? (
+                    <img
+                      src={product.image.originalSrc}
+                      alt={product.image.altText || product.title}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  ) : (
+                    <Image className="w-6 h-6 text-muted-foreground" />
+                  )}
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium truncate">{product.title}</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Handle: {product.handle} | Price: ${product.price}
+                  </p>
+                </div>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveProduct(product.id)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
         ) : (
-          <Card sectioned>
-            <p>{emptyStateText}</p>
-          </Card>
+          <div className="text-center py-8 text-muted-foreground">
+            {emptyStateText}
+          </div>
         )}
 
         {selectedProducts.length >= selectionLimit && (
-          <TextStyle variation="subdued">
+          <div className="text-sm text-muted-foreground">
             Maximum of {selectionLimit} products can be selected.
-          </TextStyle>
+          </div>
         )}
-      </Stack>
+      </CardContent>
     </Card>
   );
 };

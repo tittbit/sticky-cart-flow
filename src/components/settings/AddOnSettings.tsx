@@ -1,5 +1,10 @@
 import React from 'react';
-import { Card, FormLayout, TextField, Switch, Stack, Button, TextContainer } from '@shopify/polaris';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { ProductResourcePicker } from './ProductResourcePicker';
 import { useShopify } from '@/contexts/ShopifyContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,8 +63,8 @@ export const AddOnSettings: React.FC = () => {
 
       setAddOnProducts(products);
     } catch (error) {
-      console.error('Failed to load add-on products:', error);
-      toast.error('Failed to load add-on products');
+      console.error('Failed to load addon products:', error);
+      toast.error('Failed to load addon products');
     } finally {
       setLoading(false);
     }
@@ -112,86 +117,94 @@ export const AddOnSettings: React.FC = () => {
 
       toast.success('Add-on products saved successfully');
     } catch (error) {
-      console.error('Failed to save add-on products:', error);
-      toast.error('Failed to save add-on products');
+      console.error('Failed to save addon products:', error);
+      toast.error('Failed to save addon products');
     }
   };
 
   if (loading) {
-    return <Card sectioned><p>Loading add-on products...</p></Card>;
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p>Loading add-on products...</p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <Stack vertical>
-      <Card sectioned>
-        <TextContainer>
-          <p>Add-on products are shown as optional extras that customers can add to their cart. These are perfect for warranties, gift wrapping, or complementary items.</p>
-        </TextContainer>
-      </Card>
-
+    <div className="space-y-6">
       <ProductResourcePicker
         selectedProducts={addOnProducts}
         onSelectionChange={handleProductSelection}
         title="Add-On Products"
-        emptyStateText="Select products to show as optional add-ons in the cart drawer"
-        selectionLimit={5}
+        emptyStateText="Select products to offer as add-ons in the cart drawer"
+        selectionLimit={10}
       />
 
       {addOnProducts.length > 0 && (
-        <Card title="Add-On Configuration" sectioned>
-          <Stack vertical>
+        <Card>
+          <CardHeader>
+            <CardTitle>Add-On Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
             {addOnProducts.map((product, index) => (
-              <Card key={product.id} sectioned>
-                <FormLayout>
-                  <FormLayout.Group>
-                    <TextField
-                      label="Product Title"
-                      value={product.title}
-                      onChange={(value) => updateAddOnProduct(index, { title: value })}
-                      autoComplete="off"
+              <Card key={product.id}>
+                <CardContent className="p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Product Title</Label>
+                      <Input
+                        value={product.title}
+                        onChange={(e) => updateAddOnProduct(index, { title: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Price</Label>
+                      <Input
+                        type="number"
+                        value={product.price}
+                        onChange={(e) => updateAddOnProduct(index, { price: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Description</Label>
+                    <Textarea
+                      value={product.description}
+                      onChange={(e) => updateAddOnProduct(index, { description: e.target.value })}
+                      placeholder="Optional description for this add-on"
                     />
-                    <TextField
-                      label="Price"
-                      value={product.price}
-                      onChange={(value) => updateAddOnProduct(index, { price: value })}
-                      type="number"
-                      prefix="$"
-                      autoComplete="off"
-                    />
-                  </FormLayout.Group>
+                  </div>
                   
-                  <TextField
-                    label="Description"
-                    value={product.description}
-                    onChange={(value) => updateAddOnProduct(index, { description: value })}
-                    multiline={2}
-                    helpText="Brief description of the add-on product"
-                    autoComplete="off"
-                  />
-                  
-                  <FormLayout.Group>
-                    <Switch
-                      label="Default Selected"
-                      checked={product.defaultSelected}
-                      onChange={(checked) => updateAddOnProduct(index, { defaultSelected: checked })}
-                      helpText="Pre-select this add-on when cart opens"
-                    />
-                    <Switch
-                      label="Active"
-                      checked={product.isActive}
-                      onChange={(checked) => updateAddOnProduct(index, { isActive: checked })}
-                    />
-                  </FormLayout.Group>
-                </FormLayout>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={product.defaultSelected}
+                        onCheckedChange={(checked) => updateAddOnProduct(index, { defaultSelected: checked })}
+                      />
+                      <Label>Default Selected</Label>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={product.isActive}
+                        onCheckedChange={(checked) => updateAddOnProduct(index, { isActive: checked })}
+                      />
+                      <Label>Active</Label>
+                    </div>
+                  </div>
+                </CardContent>
               </Card>
             ))}
             
-            <Button primary onClick={saveAddOnProducts}>
+            <Button onClick={saveAddOnProducts}>
               Save Add-On Products
             </Button>
-          </Stack>
+          </CardContent>
         </Card>
       )}
-    </Stack>
+    </div>
   );
 };
