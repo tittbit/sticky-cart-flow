@@ -1,90 +1,54 @@
-import { useState } from "react";
-import { AdminDashboard } from "@/components/AdminDashboard";
-import { IntegrationStatus } from "@/components/IntegrationStatus";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { UnifiedCartDrawer } from "@/components/cart/UnifiedCartDrawer";
-import { StickyCartButton } from "@/components/cart/StickyCartButton";
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useShopify } from '@/contexts/ShopifyContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [cartOpen, setCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      title: "Sample Product",
-      price: 29.99,
-      quantity: 2,
-      image: "/placeholder.svg"
+  const { authenticated, shop } = useShopify();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authenticated && shop) {
+      // Auto-redirect to dashboard if authenticated
+      navigate('/dashboard');
     }
-  ]);
+  }, [authenticated, shop, navigate]);
 
+  if (!authenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20 flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="w-16 h-16 bg-gradient-primary rounded-lg flex items-center justify-center mx-auto mb-4">
+              <span className="text-white font-bold text-xl">SC</span>
+            </div>
+            <CardTitle className="text-2xl">Sticky Cart Drawer</CardTitle>
+            <p className="text-muted-foreground">Boost AOV with smart cart features</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-center text-sm text-muted-foreground">
+              Please authenticate with your Shopify store to continue.
+            </p>
+            <Button 
+              onClick={() => navigate('/auth')} 
+              className="w-full"
+            >
+              Get Started
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show loading while redirecting
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20">
-      {/* Header */}
-      <header className="border-b bg-card/95 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">SC</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-foreground">Sticky Cart Drawer</h1>
-                <p className="text-xs text-muted-foreground">Boost AOV with smart cart features</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="status-dot status-success"></div>
-              <span className="text-sm text-muted-foreground">Connected</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-6 py-8 max-w-7xl">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
-            <TabsTrigger value="dashboard" className="flex items-center space-x-2">
-              <span>⚙️</span>
-              <span>Dashboard</span>
-            </TabsTrigger>
-            <TabsTrigger value="status" className="flex items-center space-x-2">
-              <span>📊</span>
-              <span>Integration Status</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="dashboard" className="space-y-6">
-            <AdminDashboard />
-          </TabsContent>
-
-          <TabsContent value="status" className="space-y-6">
-            <IntegrationStatus />
-          </TabsContent>
-        </Tabs>
-      </main>
-
-      {/* Cart Components */}
-      <StickyCartButton 
-        itemCount={cartItems.reduce((sum, item) => sum + item.quantity, 0)}
-        totalPrice={cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)}
-        onClick={() => setCartOpen(true)}
-      />
-      
-      <UnifiedCartDrawer
-        isOpen={cartOpen}
-        onClose={() => setCartOpen(false)}
-        items={cartItems}
-        onUpdateQuantity={(id, quantity) => {
-          setCartItems(items => items.map(item => 
-            item.id === id ? { ...item, quantity } : item
-          ));
-        }}
-        onRemoveItem={(id) => {
-          setCartItems(items => items.filter(item => item.id !== id));
-        }}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Loading dashboard...</p>
+      </div>
     </div>
   );
 };

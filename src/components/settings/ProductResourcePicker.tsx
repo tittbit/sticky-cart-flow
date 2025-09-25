@@ -76,7 +76,6 @@ export const ProductResourcePicker: React.FC<ProductResourcePickerProps> = ({
         <Button
           onClick={handleOpenPicker}
           disabled={selectedProducts.length >= selectionLimit}
-          variant="outline"
         >
           {selectedProducts.length === 0 ? 'Select Products' : 'Add More Products'}
         </Button>
@@ -105,7 +104,6 @@ export const ProductResourcePicker: React.FC<ProductResourcePickerProps> = ({
                 </div>
                 
                 <Button
-                  variant="ghost"
                   size="sm"
                   onClick={() => handleRemoveProduct(product.id)}
                 >

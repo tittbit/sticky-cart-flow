@@ -1,5 +1,8 @@
 import React from 'react';
-import { Page, Layout, Card, Navigation } from '@shopify/polaris';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { AppSidebar } from './AppSidebar';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useShopify } from '@/contexts/ShopifyContext';
 import { useSettings } from '@/contexts/SettingsContext';
 
@@ -7,82 +10,63 @@ interface AppLayoutProps {
   children: React.ReactNode;
   title: string;
   subtitle?: string;
-  primaryAction?: React.ComponentProps<typeof Page>['primaryAction'];
-  secondaryActions?: React.ComponentProps<typeof Page>['secondaryActions'];
 }
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
   children,
   title,
   subtitle,
-  primaryAction,
-  secondaryActions,
 }) => {
   const { shop } = useShopify();
-  const { hasUnsavedChanges, saveSettings } = useSettings();
-
-  const navigationItems = [
-    {
-      label: 'Dashboard',
-      icon: 'ViewMajor',
-      url: '/',
-    },
-    {
-      label: 'Settings',
-      icon: 'SettingsMajor',
-      url: '/settings',
-    },
-    {
-      label: 'Analytics',
-      icon: 'AnalyticsMajor',
-      url: '/analytics',
-    },
-    {
-      label: 'Billing',
-      icon: 'CreditCardMajor',
-      url: '/billing',
-    },
-  ];
+  const { hasUnsavedChanges, saveSettings, loading } = useSettings();
 
   return (
-    <div className="app-layout">
-      <Page
-        title={title}
-        subtitle={subtitle}
-        primaryAction={
-          hasUnsavedChanges
-            ? {
-                content: 'Save Changes',
-                onAction: saveSettings,
-                loading: false,
-              }
-            : primaryAction
-        }
-        secondaryActions={secondaryActions}
-      >
-        <Layout>
-          <Layout.Section variant="oneThird">
-            <Card>
-              <Navigation location="/">
-                <Navigation.Section
-                  items={navigationItems}
-                />
-              </Navigation>
-            </Card>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full">
+        <AppSidebar />
+        
+        <main className="flex-1 flex flex-col">
+          <header className="h-16 border-b bg-background flex items-center justify-between px-6">
+            <div>
+              <h1 className="text-2xl font-bold">{title}</h1>
+              {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
+            </div>
             
-            {shop && (
-              <Card title="Shop Information" sectioned>
-                <p><strong>Shop:</strong> {shop}</p>
-                <p><strong>Status:</strong> <span className="text-green-600">Connected</span></p>
-              </Card>
+            {hasUnsavedChanges && (
+              <Button 
+                onClick={saveSettings}
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : 'Save Changes'}
+              </Button>
             )}
-          </Layout.Section>
-
-          <Layout.Section>
-            {children}
-          </Layout.Section>
-        </Layout>
-      </Page>
-    </div>
+          </header>
+          
+          <div className="flex-1 p-6">
+            <div className="flex gap-6">
+              <div className="flex-1">
+                {children}
+              </div>
+              
+              <div className="w-80 space-y-4">
+                {shop && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Shop Information</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <p><strong>Shop:</strong> {shop}</p>
+                        <p><strong>Status:</strong> <span className="text-green-600">Connected</span></p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
   );
 };

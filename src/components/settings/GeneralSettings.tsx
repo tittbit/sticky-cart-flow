@@ -54,287 +54,415 @@ export const GeneralSettings: React.FC = () => {
     { label: 'Shake', value: 'shake' },
   ];
 
-  const handleColorChange = (field: string, color: string) => {
-    if (field.includes('.')) {
-      const [section, property] = field.split('.');
-      updateSettings({
-        [section]: {
-          ...settings[section as keyof typeof settings],
-          [property]: color,
-        }
-      } as any);
-    }
-  };
-
   return (
-    <Stack vertical>
-      <Banner status="info">
-        <p>Configure your cart drawer appearance and behavior. Changes are automatically saved.</p>
-      </Banner>
+    <div className="space-y-6">
+      <Alert>
+        <AlertDescription>
+          Configure your cart drawer appearance and behavior. Changes are automatically saved.
+        </AlertDescription>
+      </Alert>
 
       {/* Cart Drawer Settings */}
-      <Card title="Cart Drawer Settings" sectioned>
-        <FormLayout>
-          <Switch
-            label="Enable Cart Drawer"
-            checked={settings.cartDrawer.enabled}
-            onChange={(checked) => updateSettings({
-              cartDrawer: { ...settings.cartDrawer, enabled: checked }
-            })}
-          />
-
-          <FormLayout.Group>
-            <Select
-              label="Position"
-              options={drawerPositionOptions}
-              value={settings.cartDrawer.position}
-              onChange={(value) => updateSettings({
-                cartDrawer: { ...settings.cartDrawer, position: value as 'left' | 'right' }
-              })}
-            />
-
-            <Select
-              label="Theme"
-              options={themeOptions}
-              value={settings.cartDrawer.theme}
-              onChange={(value) => updateSettings({
-                cartDrawer: { ...settings.cartDrawer, theme: value as 'light' | 'dark' | 'auto' }
-              })}
-            />
-          </FormLayout.Group>
-
-          <FormLayout.Group>
+      <Card>
+        <CardHeader>
+          <CardTitle>Cart Drawer Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center space-x-2">
             <Switch
-              label="Show on Desktop"
-              checked={settings.cartDrawer.showOnDesktop}
-              onChange={(checked) => updateSettings({
-                cartDrawer: { ...settings.cartDrawer, showOnDesktop: checked }
+              checked={settings.cartDrawer.enabled}
+              onCheckedChange={(checked) => updateSettings({
+                cartDrawer: { ...settings.cartDrawer, enabled: checked }
               })}
             />
+            <Label>Enable Cart Drawer</Label>
+          </div>
 
-            <Switch
-              label="Show on Mobile"
-              checked={settings.cartDrawer.showOnMobile}
-              onChange={(checked) => updateSettings({
-                cartDrawer: { ...settings.cartDrawer, showOnMobile: checked }
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Position</Label>
+              <Select
+                value={settings.cartDrawer.position}
+                onValueChange={(value) => updateSettings({
+                  cartDrawer: { ...settings.cartDrawer, position: value as 'left' | 'right' }
+                })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {drawerPositionOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Theme</Label>
+              <Select
+                value={settings.cartDrawer.theme}
+                onValueChange={(value) => updateSettings({
+                  cartDrawer: { ...settings.cartDrawer, theme: value as 'light' | 'dark' | 'auto' }
+                })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {themeOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={settings.cartDrawer.showOnDesktop}
+                onCheckedChange={(checked) => updateSettings({
+                  cartDrawer: { ...settings.cartDrawer, showOnDesktop: checked }
+                })}
+              />
+              <Label>Show on Desktop</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={settings.cartDrawer.showOnMobile}
+                onCheckedChange={(checked) => updateSettings({
+                  cartDrawer: { ...settings.cartDrawer, showOnMobile: checked }
+                })}
+              />
+              <Label>Show on Mobile</Label>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Animation</Label>
+            <Select
+              value={settings.cartDrawer.animation}
+              onValueChange={(value) => updateSettings({
+                cartDrawer: { ...settings.cartDrawer, animation: value as 'slide' | 'fade' | 'scale' }
               })}
-            />
-          </FormLayout.Group>
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {animationOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select
-            label="Animation"
-            options={animationOptions}
-            value={settings.cartDrawer.animation}
-            onChange={(value) => updateSettings({
-              cartDrawer: { ...settings.cartDrawer, animation: value as 'slide' | 'fade' | 'scale' }
-            })}
-          />
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={settings.cartDrawer.autoOpen}
+                onCheckedChange={(checked) => updateSettings({
+                  cartDrawer: { ...settings.cartDrawer, autoOpen: checked }
+                })}
+              />
+              <Label>Auto Open Cart</Label>
+            </div>
+            <p className="text-sm text-muted-foreground">Automatically open cart when items are added</p>
 
-          <Switch
-            label="Auto Open Cart"
-            checked={settings.cartDrawer.autoOpen}
-            onChange={(checked) => updateSettings({
-              cartDrawer: { ...settings.cartDrawer, autoOpen: checked }
-            })}
-            helpText="Automatically open cart when items are added"
-          />
-
-          <Switch
-            label="Backdrop Blur"
-            checked={settings.cartDrawer.backdropBlur}
-            onChange={(checked) => updateSettings({
-              cartDrawer: { ...settings.cartDrawer, backdropBlur: checked }
-            })}
-          />
-        </FormLayout>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={settings.cartDrawer.backdropBlur}
+                onCheckedChange={(checked) => updateSettings({
+                  cartDrawer: { ...settings.cartDrawer, backdropBlur: checked }
+                })}
+              />
+              <Label>Backdrop Blur</Label>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Sticky Button Settings */}
-      <Card title="Sticky Cart Button Settings" sectioned>
-        <FormLayout>
-          <Switch
-            label="Enable Sticky Button"
-            checked={settings.stickyButton.enabled}
-            onChange={(checked) => updateSettings({
-              stickyButton: { ...settings.stickyButton, enabled: checked }
-            })}
-          />
-
-          <FormLayout.Group>
-            <TextField
-              label="Button Text"
-              value={settings.stickyButton.text}
-              onChange={(value) => updateSettings({
-                stickyButton: { ...settings.stickyButton, text: value }
-              })}
-              autoComplete="off"
-            />
-
-            <Select
-              label="Position"
-              options={positionOptions}
-              value={settings.stickyButton.position}
-              onChange={(value) => updateSettings({
-                stickyButton: { ...settings.stickyButton, position: value as any }
-              })}
-            />
-          </FormLayout.Group>
-
-          <FormLayout.Group>
-            <Select
-              label="Icon"
-              options={iconOptions}
-              value={settings.stickyButton.icon}
-              onChange={(value) => updateSettings({
-                stickyButton: { ...settings.stickyButton, icon: value as 'cart' | 'bag' | 'basket' }
-              })}
-            />
-
-            <Select
-              label="Size"
-              options={sizeOptions}
-              value={settings.stickyButton.size}
-              onChange={(value) => updateSettings({
-                stickyButton: { ...settings.stickyButton, size: value as 'sm' | 'md' | 'lg' }
-              })}
-            />
-          </FormLayout.Group>
-
-          <FormLayout.Group>
+      <Card>
+        <CardHeader>
+          <CardTitle>Sticky Cart Button Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center space-x-2">
             <Switch
-              label="Show Item Count"
-              checked={settings.stickyButton.showCount}
-              onChange={(checked) => updateSettings({
-                stickyButton: { ...settings.stickyButton, showCount: checked }
+              checked={settings.stickyButton.enabled}
+              onCheckedChange={(checked) => updateSettings({
+                stickyButton: { ...settings.stickyButton, enabled: checked }
               })}
             />
+            <Label>Enable Sticky Button</Label>
+          </div>
 
-            <Switch
-              label="Show Cart Total"
-              checked={settings.stickyButton.showPrice}
-              onChange={(checked) => updateSettings({
-                stickyButton: { ...settings.stickyButton, showPrice: checked }
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="button-text">Button Text</Label>
+              <Input
+                id="button-text"
+                value={settings.stickyButton.text}
+                onChange={(e) => updateSettings({
+                  stickyButton: { ...settings.stickyButton, text: e.target.value }
+                })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Position</Label>
+              <Select
+                value={settings.stickyButton.position}
+                onValueChange={(value) => updateSettings({
+                  stickyButton: { ...settings.stickyButton, position: value as any }
+                })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {positionOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Icon</Label>
+              <Select
+                value={settings.stickyButton.icon}
+                onValueChange={(value) => updateSettings({
+                  stickyButton: { ...settings.stickyButton, icon: value as 'cart' | 'bag' | 'basket' }
+                })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {iconOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Size</Label>
+              <Select
+                value={settings.stickyButton.size}
+                onValueChange={(value) => updateSettings({
+                  stickyButton: { ...settings.stickyButton, size: value as 'sm' | 'md' | 'lg' }
+                })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sizeOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={settings.stickyButton.showCount}
+                onCheckedChange={(checked) => updateSettings({
+                  stickyButton: { ...settings.stickyButton, showCount: checked }
+                })}
+              />
+              <Label>Show Item Count</Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={settings.stickyButton.showPrice}
+                onCheckedChange={(checked) => updateSettings({
+                  stickyButton: { ...settings.stickyButton, showPrice: checked }
+                })}
+              />
+              <Label>Show Cart Total</Label>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Animation</Label>
+            <Select
+              value={settings.stickyButton.animation}
+              onValueChange={(value) => updateSettings({
+                stickyButton: { ...settings.stickyButton, animation: value as any }
               })}
-            />
-          </FormLayout.Group>
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {buttonAnimationOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-          <Select
-            label="Animation"
-            options={buttonAnimationOptions}
-            value={settings.stickyButton.animation}
-            onChange={(value) => updateSettings({
-              stickyButton: { ...settings.stickyButton, animation: value as any }
-            })}
-          />
-
-          <div>
-            <label>Button Color</label>
-            <ColorPicker
-              color={hexToHsb(settings.stickyButton.color)}
-              onChange={(color) => handleColorChange('stickyButton.color', color)}
+          <div className="space-y-2">
+            <Label htmlFor="button-color">Button Color</Label>
+            <Input
+              id="button-color"
+              type="color"
+              value={settings.stickyButton.color}
+              onChange={(e) => updateSettings({
+                stickyButton: { ...settings.stickyButton, color: e.target.value }
+              })}
             />
           </div>
-        </FormLayout>
+        </CardContent>
       </Card>
 
       {/* Free Shipping Settings */}
-      <Card title="Free Shipping Progress" sectioned>
-        <FormLayout>
-          <Switch
-            label="Enable Free Shipping Progress"
-            checked={settings.freeShipping.enabled}
-            onChange={(checked) => updateSettings({
-              freeShipping: { ...settings.freeShipping, enabled: checked }
-            })}
-          />
-
-          <FormLayout.Group>
-            <TextField
-              label="Free Shipping Threshold"
-              value={settings.freeShipping.threshold.toString()}
-              onChange={(value) => updateSettings({
-                freeShipping: { ...settings.freeShipping, threshold: parseFloat(value) || 0 }
+      <Card>
+        <CardHeader>
+          <CardTitle>Free Shipping Progress</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={settings.freeShipping.enabled}
+              onCheckedChange={(checked) => updateSettings({
+                freeShipping: { ...settings.freeShipping, enabled: checked }
               })}
-              type="number"
-              prefix="$"
-              autoComplete="off"
             />
+            <Label>Enable Free Shipping Progress</Label>
+          </div>
 
-            <TextField
-              label="Currency"
-              value={settings.freeShipping.currency}
-              onChange={(value) => updateSettings({
-                freeShipping: { ...settings.freeShipping, currency: value }
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="threshold">Free Shipping Threshold</Label>
+              <Input
+                id="threshold"
+                type="number"
+                value={settings.freeShipping.threshold}
+                onChange={(e) => updateSettings({
+                  freeShipping: { ...settings.freeShipping, threshold: parseFloat(e.target.value) || 0 }
+                })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="currency">Currency</Label>
+              <Input
+                id="currency"
+                value={settings.freeShipping.currency}
+                onChange={(e) => updateSettings({
+                  freeShipping: { ...settings.freeShipping, currency: e.target.value }
+                })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="message">Progress Message</Label>
+            <Input
+              id="message"
+              value={settings.freeShipping.message}
+              onChange={(e) => updateSettings({
+                freeShipping: { ...settings.freeShipping, message: e.target.value }
               })}
-              autoComplete="off"
             />
-          </FormLayout.Group>
+            <p className="text-sm text-muted-foreground">Use variables: {'{amount}'} for remaining amount, {'{total}'} for threshold</p>
+          </div>
 
-          <TextField
-            label="Progress Message"
-            value={settings.freeShipping.message}
-            onChange={(value) => updateSettings({
-              freeShipping: { ...settings.freeShipping, message: value }
-            })}
-            helpText="Use variables: {amount} for remaining amount, {total} for threshold"
-            autoComplete="off"
-          />
-
-          <Switch
-            label="Show Progress Bar"
-            checked={settings.freeShipping.progressBar}
-            onChange={(checked) => updateSettings({
-              freeShipping: { ...settings.freeShipping, progressBar: checked }
-            })}
-          />
-        </FormLayout>
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={settings.freeShipping.progressBar}
+              onCheckedChange={(checked) => updateSettings({
+                freeShipping: { ...settings.freeShipping, progressBar: checked }
+              })}
+            />
+            <Label>Show Progress Bar</Label>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Design Settings */}
-      <Card title="Design & Colors" sectioned>
-        <FormLayout>
-          <div>
-            <label>Primary Color</label>
-            <ColorPicker
-              color={hexToHsb(settings.design.primaryColor)}
-              onChange={(color) => handleColorChange('design.primaryColor', color)}
-            />
+      <Card>
+        <CardHeader>
+          <CardTitle>Design & Colors</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="primary-color">Primary Color</Label>
+              <Input
+                id="primary-color"
+                type="color"
+                value={settings.design.primaryColor}
+                onChange={(e) => updateSettings({
+                  design: { ...settings.design, primaryColor: e.target.value }
+                })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="secondary-color">Secondary Color</Label>
+              <Input
+                id="secondary-color"
+                type="color"
+                value={settings.design.secondaryColor}
+                onChange={(e) => updateSettings({
+                  design: { ...settings.design, secondaryColor: e.target.value }
+                })}
+              />
+            </div>
           </div>
 
-          <div>
-            <label>Secondary Color</label>
-            <ColorPicker
-              color={hexToHsb(settings.design.secondaryColor)}
-              onChange={(color) => handleColorChange('design.secondaryColor', color)}
-            />
-          </div>
-
-          <div>
-            <label>Border Radius</label>
-            <RangeSlider
-              label="Border Radius"
-              value={settings.design.borderRadius}
-              onChange={(value) => updateSettings({
+          <div className="space-y-2">
+            <Label htmlFor="border-radius">Border Radius: {settings.design.borderRadius}px</Label>
+            <Slider
+              value={[settings.design.borderRadius]}
+              onValueChange={([value]) => updateSettings({
                 design: { ...settings.design, borderRadius: value }
               })}
-              min={0}
               max={20}
               step={1}
-              suffix={`${settings.design.borderRadius}px`}
             />
           </div>
 
-          <TextField
-            label="Font Family"
-            value={settings.design.fontFamily}
-            onChange={(value) => updateSettings({
-              design: { ...settings.design, fontFamily: value }
-            })}
-            helpText="Enter a Google Font name or system font"
-            autoComplete="off"
-          />
-        </FormLayout>
+          <div className="space-y-2">
+            <Label htmlFor="font-family">Font Family</Label>
+            <Input
+              id="font-family"
+              value={settings.design.fontFamily}
+              onChange={(e) => updateSettings({
+                design: { ...settings.design, fontFamily: e.target.value }
+              })}
+              placeholder="Enter a Google Font name or system font"
+            />
+          </div>
+        </CardContent>
       </Card>
-    </Stack>
+    </div>
   );
 };
