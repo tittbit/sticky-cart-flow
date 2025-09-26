@@ -1,11 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Provider } from '@shopify/app-bridge-react';
-import { authenticatedFetch } from '@shopify/app-bridge/utilities';
 
 interface ShopifyContextType {
   isAuthenticated: boolean;
   shop: string | null;
-  fetch: typeof authenticatedFetch | null;
   loading: boolean;
   error: string | null;
 }
@@ -13,7 +10,6 @@ interface ShopifyContextType {
 const ShopifyContext = createContext<ShopifyContextType>({
   isAuthenticated: false,
   shop: null,
-  fetch: null,
   loading: true,
   error: null,
 });
@@ -33,7 +29,6 @@ interface ShopifyProviderProps {
 export const ShopifyProvider: React.FC<ShopifyProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [shop, setShop] = useState<string | null>(null);
-  const [fetch, setFetch] = useState<typeof authenticatedFetch | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +61,6 @@ export const ShopifyProvider: React.FC<ShopifyProviderProps> = ({ children }) =>
   const value = {
     isAuthenticated,
     shop,
-    fetch,
     loading,
     error,
   };
@@ -75,24 +69,6 @@ export const ShopifyProvider: React.FC<ShopifyProviderProps> = ({ children }) =>
     return <div className="loading-spinner">Initializing...</div>;
   }
 
-  // For embedded app
-  if (shop && isAuthenticated) {
-    return (
-      <Provider
-        config={{
-          apiKey: process.env.REACT_APP_SHOPIFY_API_KEY || 'demo',
-          host: new URLSearchParams(window.location.search).get('host') || '',
-          forceRedirect: false,
-        }}
-      >
-        <ShopifyContext.Provider value={value}>
-          {children}
-        </ShopifyContext.Provider>
-      </Provider>
-    );
-  }
-
-  // For standalone app
   return (
     <ShopifyContext.Provider value={value}>
       {children}

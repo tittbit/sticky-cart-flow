@@ -1,44 +1,53 @@
 /**
- * Sticky Cart Drawer - Public Implementation
- * Served from public folder for easy deployment and updates
+ * Sticky Cart Drawer
+ * A modern, customizable cart drawer for Shopify stores
  */
 
-class StickyCartDrawer {
-  constructor() {
-    this.settings = {};
-    this.cart = { items: [], total_price: 0, item_count: 0 };
-    this.isOpen = false;
-    this.shopDomain = this.getShopDomain();
-    
-    this.init();
-  }
+(function() {
+  'use strict';
 
-  getShopDomain() {
-    return window.Shopify?.shop || window.SHOP_DOMAIN || 'demo-shop.myshopify.com';
-  }
-
-  async init() {
-    try {
-      // Load settings from Supabase storage
-      await this.loadSettings();
-      
-      // Load current cart
-      await this.loadCart();
-      
-      // Create UI elements
-      this.createStickyButton();
-      this.createCartDrawer();
-      
-      // Set up event listeners
-      this.setupEventListeners();
-      
-      // Initialize analytics
-      this.initAnalytics();
-    } catch (error) {
-      console.error('Sticky Cart Drawer initialization failed:', error);
-      this.loadFallbackSettings();
+  // Default configuration
+  let config = {
+    enabled: true,
+    stickyButton: {
+      enabled: true,
+      position: 'bottom-right',
+      text: 'Cart',
+      showCount: true,
+      backgroundColor: '#000000',
+      textColor: '#ffffff'
+    },
+    cartDrawer: {
+      enabled: true,
+      position: 'right',
+      width: '400px',
+      showProductImages: true,
+      showQuantitySelector: true,
+      showRemoveButton: true
+    },
+    freeShipping: {
+      enabled: false,
+      threshold: 100,
+      message: 'Free shipping on orders over ${threshold}!'
+    },
+    upsells: {
+      enabled: false,
+      products: []
+    },
+    addons: {
+      enabled: false,
+      products: []
+    },
+    analytics: {
+      enabled: false,
+      googleAnalyticsId: null,
+      facebookPixelId: null
     }
-  }
+  };
+
+  // Cart state
+  let cartData = null;
+  let isDrawerOpen = false;
 
   async loadSettings() {
     try {

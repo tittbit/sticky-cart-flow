@@ -207,31 +207,38 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   };
 
   const saveSettings = async () => {
-    if (!shop) return;
-
+    if (!shop || !hasUnsavedChanges) return;
+    
+    setLoading(true);
     try {
       const { error } = await supabase
-        .from('shop_configurations')
+        .from('app_settings')
         .upsert({
           shop_domain: shop,
           settings: settings,
-          updated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
 
       if (error) throw error;
 
-      // Publish settings to storage for frontend
-      await supabase.functions.invoke('cart-settings-publisher', {
-        method: 'POST',
-        body: { shopDomain: shop, settings }
-      });
-
       setHasUnsavedChanges(false);
+      
+      // Trigger frontend update via shop-config endpoint
+      await fetch('/api/shop-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ shop, settings })
+      });
+      
       toast.success('Settings saved successfully');
     } catch (error) {
       console.error('Failed to save settings:', error);
       toast.error('Failed to save settings');
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 

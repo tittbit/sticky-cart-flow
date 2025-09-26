@@ -5,17 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 const Index = () => {
-  const { authenticated, shop } = useShopify();
+  const { isAuthenticated, shop } = useShopify();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (authenticated && shop) {
+    if (isAuthenticated && shop) {
       // Auto-redirect to dashboard if authenticated
       navigate('/dashboard');
     }
-  }, [authenticated, shop, navigate]);
+  }, [isAuthenticated, shop, navigate]);
 
-  if (!authenticated) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20 flex items-center justify-center">
         <Card className="w-full max-w-md">

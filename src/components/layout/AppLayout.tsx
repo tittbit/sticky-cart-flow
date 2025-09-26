@@ -62,6 +62,22 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                     </CardContent>
                   </Card>
                 )}
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Integration Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">
+                        Cart drawer script: <span className="text-green-600">Active</span>
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        App embed: <span className="text-green-600">Ready</span>
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </div>

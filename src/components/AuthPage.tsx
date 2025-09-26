@@ -1,151 +1,102 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { z } from 'zod';
-
-const authSchema = z.object({
-  email: z.string().email('Invalid email format'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-});
+import { Loader2 } from 'lucide-react';
 
 export const AuthPage: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [shopDomain, setShopDomain] = useState('');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleAuth = async (type: 'login' | 'signup', email: string, password: string) => {
-    setIsLoading(true);
+  const handleAuth = async () => {
+    if (!shopDomain.trim()) {
+      setError('Please enter your shop domain');
+      return;
+    }
+
+    // Clean up the shop domain
+    let cleanDomain = shopDomain.toLowerCase().trim();
+    if (!cleanDomain.includes('.myshopify.com')) {
+      cleanDomain = `${cleanDomain}.myshopify.com`;
+    }
+
+    setLoading(true);
     setError('');
 
     try {
-      // Validate input
-      authSchema.parse({ email, password });
-
-      if (type === 'signup') {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`
-          }
-        });
-        
-        if (error) {
-          if (error.message.includes('already registered')) {
-            setError('This email is already registered. Please sign in instead.');
-          } else {
-            setError(error.message);
-          }
-          return;
-        }
-        
-        toast.success('Check your email for verification link');
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        
-        if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            setError('Invalid email or password. Please try again.');
-          } else {
-            setError(error.message);
-          }
-          return;
-        }
-        
-        navigate('/');
-      }
+      // Store shop domain
+      localStorage.setItem('shopify_shop', cleanDomain);
+      
+      // In a real app, you would redirect to Shopify OAuth
+      // For demo purposes, we'll simulate successful auth
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
+      
     } catch (err) {
-      if (err instanceof z.ZodError) {
-        setError(err.issues[0].message);
-      } else {
-        setError('An unexpected error occurred');
-      }
-    } finally {
-      setIsLoading(false);
+      setError('Failed to authenticate. Please try again.');
+      setLoading(false);
     }
   };
 
-  const AuthForm = ({ type }: { type: 'login' | 'signup' }) => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-
-    return (
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleAuth(type, email, password);
-        }}
-        className="space-y-4"
-      >
-        <div className="space-y-2">
-          <Label htmlFor={`${type}-email`}>Email</Label>
-          <Input
-            id={`${type}-email`}
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="your@email.com"
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor={`${type}-password`}>Password</Label>
-          <Input
-            id={`${type}-password`}
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Your password"
-            required
-            minLength={6}
-          />
-        </div>
-
-        <Button type="submit" className="w-full" disabled={isLoading}>
-          {isLoading ? 'Please wait...' : type === 'login' ? 'Sign In' : 'Sign Up'}
-        </Button>
-      </form>
-    );
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-secondary/20 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-center">Cart Drawer App</CardTitle>
+        <CardHeader className="text-center">
+          <div className="w-16 h-16 bg-gradient-primary rounded-lg flex items-center justify-center mx-auto mb-4">
+            <span className="text-white font-bold text-xl">SC</span>
+          </div>
+          <CardTitle className="text-2xl">Connect Your Store</CardTitle>
+          <p className="text-muted-foreground">Enter your Shopify store domain to get started</p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {error && (
-            <Alert className="mb-4">
+            <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
+          
+          <div className="space-y-2">
+            <Label htmlFor="shop">Shop Domain</Label>
+            <div className="flex">
+              <Input
+                id="shop"
+                type="text"
+                placeholder="your-store"
+                value={shopDomain}
+                onChange={(e) => setShopDomain(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAuth()}
+                disabled={loading}
+              />
+              <div className="flex items-center px-3 bg-muted border border-l-0 rounded-r-md text-sm text-muted-foreground">
+                .myshopify.com
+              </div>
+            </div>
+          </div>
 
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
-            </TabsList>
+          <Button 
+            onClick={handleAuth} 
+            disabled={loading}
+            className="w-full"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Connecting...
+              </>
+            ) : (
+              'Connect Store'
+            )}
+          </Button>
 
-            <TabsContent value="login" className="mt-6">
-              <AuthForm type="login" />
-            </TabsContent>
-
-            <TabsContent value="signup" className="mt-6">
-              <AuthForm type="signup" />
-            </TabsContent>
-          </Tabs>
+          <p className="text-xs text-muted-foreground text-center">
+            By connecting, you agree to our terms of service and privacy policy.
+          </p>
         </CardContent>
       </Card>
     </div>
