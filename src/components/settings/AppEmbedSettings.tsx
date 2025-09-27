@@ -43,9 +43,9 @@ export const AppEmbedSettings: React.FC = () => {
       </Alert>
 
       <Tabs defaultValue="app-embed" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="app-embed">App Embed (Recommended)</TabsTrigger>
-          <TabsTrigger value="theme-integration">Theme Integration</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-2 gap-2">
+          <TabsTrigger value="app-embed" className="w-full">App Embed (Recommended)</TabsTrigger>
+          <TabsTrigger value="theme-integration" className="w-full">Theme Integration</TabsTrigger>
         </TabsList>
 
         <TabsContent value="app-embed" className="space-y-4">

@@ -21,7 +21,7 @@ export const AnalyticsSettings: React.FC = () => {
         <CardHeader>
           <CardTitle>Analytics Configuration</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="p-4 md:p-6 space-y-6">
           <div className="flex items-center space-x-2">
             <Switch
               checked={settings.analytics.enableTracking}
@@ -65,7 +65,7 @@ export const AnalyticsSettings: React.FC = () => {
         <CardHeader>
           <CardTitle>Tracked Events</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 md:p-6">
           <p className="font-medium mb-3">The following events are automatically tracked when analytics is enabled:</p>
           <ul className="space-y-1 text-sm text-muted-foreground">
             <li>• Cart drawer opened/closed</li>
@@ -85,7 +85,7 @@ export const AnalyticsSettings: React.FC = () => {
         <CardHeader>
           <CardTitle>Privacy & Compliance</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 md:p-6">
           <p className="text-sm"><strong>Important:</strong> Ensure your privacy policy covers the tracking data collected by this app. Consider implementing cookie consent if required by your jurisdiction (GDPR, CCPA, etc.).</p>
         </CardContent>
       </Card>

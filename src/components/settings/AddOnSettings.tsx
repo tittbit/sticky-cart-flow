@@ -147,11 +147,11 @@ export const AddOnSettings: React.FC = () => {
           <CardHeader>
             <CardTitle>Add-On Configuration</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="p-4 md:p-6 space-y-6">
             {addOnProducts.map((product, index) => (
               <Card key={product.id}>
                 <CardContent className="p-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Product Title</Label>
                       <Input
@@ -178,7 +178,7 @@ export const AddOnSettings: React.FC = () => {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center space-x-2">
                       <Switch
                         checked={product.defaultSelected}

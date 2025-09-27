@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Settings, BarChart3, Plus, Zap } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { GeneralSettings } from '@/components/settings/GeneralSettings';
 import { UpsellSettings } from '@/components/settings/UpsellSettings';
@@ -27,11 +28,27 @@ export const Dashboard: React.FC = () => {
         )}
         
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="general">General Settings</TabsTrigger>
-            <TabsTrigger value="upsells">Upsell Products</TabsTrigger>
-            <TabsTrigger value="addons">Add-On Products</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1">
+            <TabsTrigger value="general" className="text-xs md:text-sm py-2.5 px-3">
+              <Settings className="h-4 w-4 mr-1.5 md:mr-2" />
+              <span className="hidden sm:inline">General</span>
+              <span className="sm:hidden">Settings</span>
+            </TabsTrigger>
+            <TabsTrigger value="upsells" className="text-xs md:text-sm py-2.5 px-3">
+              <Zap className="h-4 w-4 mr-1.5 md:mr-2" />
+              <span className="hidden sm:inline">Upsells</span>
+              <span className="sm:hidden">Upsell</span>
+            </TabsTrigger>
+            <TabsTrigger value="addons" className="text-xs md:text-sm py-2.5 px-3">
+              <Plus className="h-4 w-4 mr-1.5 md:mr-2" />
+              <span className="hidden sm:inline">Add-Ons</span>
+              <span className="sm:hidden">Add-On</span>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="text-xs md:text-sm py-2.5 px-3">
+              <BarChart3 className="h-4 w-4 mr-1.5 md:mr-2" />
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="sm:hidden">Stats</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4">
