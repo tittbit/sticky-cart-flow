@@ -34,32 +34,37 @@ export const ProductResourcePicker: React.FC<ProductResourcePickerProps> = ({
 
   // Mock product selection for demo purposes
   const handleOpenPicker = () => {
-    // In a real implementation, this would open Shopify's ResourcePicker
-    // For now, we'll add mock products
+    // In a real implementation, this would integrate with Shopify's ResourcePicker
+    // For demo purposes, we generate realistic mock products
     const mockProducts = [
       {
-        id: 'gid://shopify/Product/1',
-        handle: 'test-product-1',
-        title: 'Test Product 1',
-        price: '29.99',
+        id: `gid://shopify/Product/${Date.now()}-1`,
+        handle: `demo-product-${Date.now()}-1`,
+        title: `Premium T-Shirt - ${new Date().getFullYear()}`,
+        price: (Math.random() * 50 + 15).toFixed(2),
         image: {
-          originalSrc: 'https://via.placeholder.com/100',
-          altText: 'Test Product 1'
+          originalSrc: `https://picsum.photos/200/200?random=${Date.now()}`,
+          altText: 'Premium T-Shirt'
         }
       },
       {
-        id: 'gid://shopify/Product/2',
-        handle: 'test-product-2',
-        title: 'Test Product 2',
-        price: '39.99',
+        id: `gid://shopify/Product/${Date.now()}-2`, 
+        handle: `demo-product-${Date.now()}-2`,
+        title: `Eco-Friendly Hoodie`,
+        price: (Math.random() * 80 + 25).toFixed(2),
         image: {
-          originalSrc: 'https://via.placeholder.com/100',
-          altText: 'Test Product 2'
+          originalSrc: `https://picsum.photos/200/200?random=${Date.now() + 1}`,
+          altText: 'Eco-Friendly Hoodie'
         }
       }
     ];
     
-    onSelectionChange([...selectedProducts, ...mockProducts.slice(0, selectionLimit - selectedProducts.length)]);
+    const availableSlots = Math.max(0, selectionLimit - selectedProducts.length);
+    const productsToAdd = mockProducts.slice(0, availableSlots);
+    
+    if (productsToAdd.length > 0) {
+      onSelectionChange([...selectedProducts, ...productsToAdd]);
+    }
   };
 
   const handleRemoveProduct = useCallback((productId: string) => {

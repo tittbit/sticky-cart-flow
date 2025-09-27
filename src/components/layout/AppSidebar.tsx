@@ -14,11 +14,8 @@ import {
 } from '@/components/ui/sidebar';
 
 const items = [
-  { title: 'Dashboard', url: '/', icon: Home },
-  { title: 'General Settings', url: '/settings/general', icon: Settings },
-  { title: 'Upsells', url: '/settings/upsells', icon: Zap },
-  { title: 'Add-Ons', url: '/settings/addons', icon: Plus },
-  { title: 'Analytics', url: '/settings/analytics', icon: BarChart3 },
+  { title: 'Dashboard', url: '/dashboard', icon: Home },
+  { title: 'App Integration', url: '/integration', icon: Settings },
 ];
 
 export function AppSidebar() {

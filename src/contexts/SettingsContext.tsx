@@ -212,7 +212,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     setLoading(true);
     try {
       const { error } = await supabase
-        .from('app_settings')
+        .from('shop_configurations')
         .upsert({
           shop_domain: shop,
           settings: settings,

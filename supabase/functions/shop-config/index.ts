@@ -28,7 +28,7 @@ serve(async (req) => {
 
     // Get shop settings
     const { data: settings, error } = await supabaseClient
-      .from('app_settings')
+      .from('shop_configurations')
       .select('*')
       .eq('shop_domain', shop)
       .single();
